@@ -60,10 +60,10 @@
   .wheel { position: relative; display: flex; justify-content: center; gap: 6px; width: min(340px, 90vw); height: 252px;
     -webkit-mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent); mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent); }
   .wheel .band { position: absolute; left: 0; right: 0; top: 108px; height: 36px; border-radius: 9px; background: rgba(118,118,128,.24); pointer-events: none; }
-  .col { width: 64px; height: 100%; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; font-family: -apple-system, sans-serif; font-size: 22px; position: relative; z-index: 1; }
-  .col::-webkit-scrollbar { display: none; }
-  .col div { height: 36px; line-height: 36px; text-align: center; scroll-snap-align: center; color: #fff; }
-  .col .pad { scroll-snap-align: none; height: 108px; }
+  /* 自绘滚轮：不用系统滚动吸附，避免 iOS 上拨着拨着卡住 */
+  .col { width: 72px; height: 100%; overflow: hidden; position: relative; z-index: 1; touch-action: none; cursor: grab; font-family: -apple-system, sans-serif; font-size: 22px; }
+  .col .track { position: absolute; left: 0; right: 0; top: 0; will-change: transform; }
+  .col .track div { height: 36px; line-height: 36px; text-align: center; color: #fff; font-variant-numeric: tabular-nums; }
   #ptogo { font-size: 26px; margin: 34px 0 20px; letter-spacing: .3px; }
   .pbtn { width: 186px; height: 56px; border-radius: 12px; font-size: 26px; color: #fff; margin-top: 12px; }
   #pset { background: #8fa3e6; } #pcancel { background: #8b95a6; }
@@ -842,22 +842,93 @@
   });
 
   // ================= 时间滚轮 =================
-  const ITEM = 36;
+  // ---- 自绘滚轮：手指拖动 + 松手惯性 + 自动对齐，点一下直接跳到那一行 ----
+  const ITEM = 36, CENTER = 3; // 可见 7 行，第 4 行（下标 3）是选中行
+  const clampPos = (col, p, slack = 0) => Math.max(-slack, Math.min(col._n - 1 + slack, p));
   function fillCol(col, items) {
     col.textContent = '';
-    const p1 = document.createElement('div'); p1.className = 'pad'; col.appendChild(p1);
-    items.forEach(v => { const d = document.createElement('div'); d.textContent = v; col.appendChild(d); });
-    const p2 = document.createElement('div'); p2.className = 'pad'; col.appendChild(p2);
+    const track = document.createElement('div'); track.className = 'track';
+    items.forEach(v => { const d = document.createElement('div'); d.textContent = v; track.appendChild(d); });
+    col.appendChild(track);
+    col._track = track; col._n = items.length; col._pos = 0; col._raf = 0;
+    bindWheel(col);
+    drawCol(col);
+  }
+  function shade(col) {
+    const kids = col._track.children, c = col._pos;
+    for (let k = Math.max(0, Math.floor(c) - 5); k <= Math.min(kids.length - 1, Math.ceil(c) + 5); k++) {
+      kids[k].style.opacity = Math.max(.25, 1 - Math.abs(k - c) * .22);
+    }
+  }
+  function drawCol(col) {
+    col._track.style.transform = `translateY(${(CENTER - col._pos) * ITEM}px)`;
+    shade(col);
+  }
+  function stopAnim(col) { cancelAnimationFrame(col._raf); clearTimeout(col._snap); col._raf = 0; }
+  function animateTo(col, target, dur) {
+    stopAnim(col);
+    const from = col._pos, t0 = performance.now();
+    target = clampPos(col, Math.round(target));
+    const done = () => { stopAnim(col); col._pos = target; drawCol(col); updatePicker(); };
+    const step = now => {
+      const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      if (k >= 1) return done();
+      col._pos = from + (target - from) * e;
+      drawCol(col); updatePicker();
+      col._raf = requestAnimationFrame(step);
+    };
+    col._raf = requestAnimationFrame(step);
+    // 保险：动画被打断（比如切到后台）也会准时对齐到整格，不会停在两格中间
+    col._snap = setTimeout(done, dur + 60);
+  }
+  function bindWheel(col) {
+    let drag = null, wheelTimer;
+    col.addEventListener('pointerdown', e => {
+      stopAnim(col);
+      try { col.setPointerCapture(e.pointerId); } catch (err) { /* 忽略 */ }
+      drag = { y: e.clientY, pos: col._pos, moved: 0, samples: [[e.timeStamp, e.clientY]] };
+    });
+    col.addEventListener('pointermove', e => {
+      if (!drag) return;
+      const dy = e.clientY - drag.y;
+      drag.moved = Math.max(drag.moved, Math.abs(dy));
+      col._pos = clampPos(col, drag.pos - dy / ITEM, .4); // 拖过头有一点阻尼
+      drag.samples.push([e.timeStamp, e.clientY]);
+      if (drag.samples.length > 8) drag.samples.shift();
+      drawCol(col); updatePicker();
+    });
+    col.addEventListener('pointerup', e => {
+      if (!drag) return;
+      const d = drag; drag = null;
+      if (d.moved < 6) {
+        const r = col.getBoundingClientRect();
+        const off = Math.round((e.clientY - r.top - CENTER * ITEM - ITEM / 2) / ITEM);
+        animateTo(col, col._pos + off, 260);
+        return;
+      }
+      // 用最后约 100ms 的移动速度算惯性
+      const last = d.samples[d.samples.length - 1];
+      const first = d.samples.find(s => last[0] - s[0] <= 100) || last;
+      const v = last[0] > first[0] && e.timeStamp - last[0] < 80 ? (last[1] - first[1]) / (last[0] - first[0]) : 0;
+      const fling = Math.max(-12, Math.min(12, -v * 170 / ITEM)); // 一次最多甩 12 格
+      const target = col._pos + fling;
+      animateTo(col, target, Math.min(750, 240 + Math.abs(target - col._pos) * 40));
+    });
+    col.addEventListener('pointercancel', () => { if (drag) { drag = null; animateTo(col, col._pos, 200); } });
+    col.addEventListener('wheel', e => {
+      e.preventDefault();
+      stopAnim(col);
+      col._pos = clampPos(col, col._pos + e.deltaY / ITEM * .6, .4);
+      drawCol(col); updatePicker();
+      clearTimeout(wheelTimer);
+      wheelTimer = setTimeout(() => animateTo(col, col._pos, 200), 120);
+    }, { passive: false });
   }
   const wh = $('wh'), wm = $('wm');
   fillCol(wh, Array.from({ length: 24 }, (_, i) => pad(i)));
   fillCol(wm, Array.from({ length: 60 }, (_, i) => pad(i)));
-  const idx = col => Math.round(col.scrollTop / ITEM);
-  const setIdx = (col, i) => { col.scrollTop = i * ITEM; };
-  function shade(col) {
-    const i = col.scrollTop / ITEM;
-    [...col.children].forEach((el, k) => { if (k === 0 || k === col.children.length - 1) return; const d = Math.abs(k - 1 - i); el.style.opacity = Math.max(.25, 1 - d * .22); });
-  }
+  const idx = col => Math.max(0, Math.min(col._n - 1, Math.round(col._pos)));
+  const setIdx = (col, i) => { stopAnim(col); col._pos = clampPos(col, i); drawCol(col); };
   // 'end'：下班时间（已过的时间点算作明天）；'start'：今天实际开始工作的时间
   let pickerMode = 'end';
   function pickerTarget() {
@@ -897,7 +968,6 @@
     requestAnimationFrame(() => { setWheel(base); updatePicker(); });
   }
   $('pMode').querySelectorAll('button').forEach(b => b.addEventListener('click', () => setPickerMode(b.dataset.m)));
-  [wh, wm].forEach(c => c.addEventListener('scroll', updatePicker, { passive: true }));
   function openPicker() {
     const p = $('picker');
     clearTimeout(openPicker.t);
