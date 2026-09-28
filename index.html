@@ -228,7 +228,6 @@
     <div class="band"></div>
     <div class="col" id="wh"></div>
     <div class="col" id="wm"></div>
-    <div class="col" id="wa"></div>
   </div>
   <div id="ptogo">To go: 0 hours 0 mins</div>
   <div id="pnote"></div>
@@ -850,10 +849,9 @@
     items.forEach(v => { const d = document.createElement('div'); d.textContent = v; col.appendChild(d); });
     const p2 = document.createElement('div'); p2.className = 'pad'; col.appendChild(p2);
   }
-  const wh = $('wh'), wm = $('wm'), wa = $('wa');
-  fillCol(wh, Array.from({ length: 12 }, (_, i) => String(i + 1)));
+  const wh = $('wh'), wm = $('wm');
+  fillCol(wh, Array.from({ length: 24 }, (_, i) => pad(i)));
   fillCol(wm, Array.from({ length: 60 }, (_, i) => pad(i)));
-  fillCol(wa, ['AM', 'PM']);
   const idx = col => Math.round(col.scrollTop / ITEM);
   const setIdx = (col, i) => { col.scrollTop = i * ITEM; };
   function shade(col) {
@@ -863,8 +861,7 @@
   // 'end'：下班时间（已过的时间点算作明天）；'start'：今天实际开始工作的时间
   let pickerMode = 'end';
   function pickerTarget() {
-    const h12 = idx(wh) + 1, m = idx(wm), pm = idx(wa) === 1;
-    const h = (h12 % 12) + (pm ? 12 : 0);
+    const h = Math.min(23, idx(wh)), m = Math.min(59, idx(wm));
     const d = new Date(); d.setHours(h, m, 0, 0);
     let ts = d.getTime();
     if (pickerMode === 'end' && ts <= Date.now()) ts += 86400000;
@@ -872,7 +869,7 @@
   }
   const hmText = mins => `${Math.floor(mins / 60)} hours ${mins % 60} mins`;
   function updatePicker() {
-    [wh, wm, wa].forEach(shade);
+    [wh, wm].forEach(shade);
     const target = pickerTarget(), now = Date.now();
     if (pickerMode === 'end') {
       $('ptogo').textContent = `To go: ${hmText(Math.max(0, Math.round((target - now) / 60000)))}`;
@@ -888,7 +885,7 @@
   }
   function setWheel(ts) {
     const d = new Date(ts), h = d.getHours();
-    setIdx(wh, (h + 11) % 12); setIdx(wm, d.getMinutes()); setIdx(wa, h >= 12 ? 1 : 0);
+    setIdx(wh, h); setIdx(wm, d.getMinutes());
   }
   function setPickerMode(m) {
     pickerMode = m;
@@ -900,7 +897,7 @@
     requestAnimationFrame(() => { setWheel(base); updatePicker(); });
   }
   $('pMode').querySelectorAll('button').forEach(b => b.addEventListener('click', () => setPickerMode(b.dataset.m)));
-  [wh, wm, wa].forEach(c => c.addEventListener('scroll', updatePicker, { passive: true }));
+  [wh, wm].forEach(c => c.addEventListener('scroll', updatePicker, { passive: true }));
   function openPicker() {
     const p = $('picker');
     clearTimeout(openPicker.t);
