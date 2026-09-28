@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#d6dae2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Coins">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Allerta+Stencil&family=Oswald:wght@500&family=Rubik+Glitch&family=Silkscreen:wght@400;700&family=VT323&display=swap">
+<title>Coins</title>
+<style>
+  :root {
+    --bg: #d6dae2; --fg: #7d5bc7;
+    --font: 'Oswald', sans-serif; --fs: 1;
+    /* 设置页（iOS 深色分组列表） */
+    --s-bg: #000; --s-cell: #1c1c1e; --s-line: #38383a; --s-text: #fff; --s-sub: #8e8e93; --s-blue: #0a84ff; --s-toggle: #a8d5f2;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; overscroll-behavior: none; -webkit-user-select: none; user-select: none; transition: background-color .01s; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  [hidden] { display: none !important; }
+
+  /* ================= 主页 ================= */
+  #home { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: env(safe-area-inset-top) 24px env(safe-area-inset-bottom); font-family: var(--font); }
+  #gear { position: absolute; top: calc(env(safe-area-inset-top) + 14px); right: 18px; width: 40px; height: 40px; display: grid; place-items: center; }
+  #gear svg { width: 34px; height: 34px; }
+  #artBox { position: relative; width: 176px; height: 208px; margin-top: -40px; cursor: pointer; }
+  #art { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+  #artImg { position: absolute; left: 0; right: 0; bottom: 6px; margin: 0 auto; width: 100%; height: 76%; object-fit: contain; image-rendering: pixelated; }
+  #timer { font-size: calc(36px * var(--fs)); line-height: 1.05; letter-spacing: .5px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  #label { font-size: calc(27px * var(--fs)); line-height: 1.1; }
+  #amount { font-size: calc(62px * var(--fs)); line-height: 1.05; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  body.num-only #timer, body.num-only #label { display: none; }
+  body.num-only #amount { font-size: calc(76px * var(--fs)); }
+  #goal { width: min(260px, 72vw); margin-top: 26px; text-align: center; }
+  .bar { height: 20px; border-radius: 10px; background: color-mix(in srgb, var(--fg) 22%, transparent); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--fg); border-radius: 10px; transition: width .6s; }
+  #togo { font-size: calc(26px * var(--fs)); margin-top: 10px; white-space: nowrap; }
+  .ctrls { display: flex; gap: 58px; margin-top: 44px; }
+  #goal[hidden] + .ctrls { margin-top: 60px; }
+  .ctrls button { width: 42px; height: 42px; display: grid; place-items: center; }
+  .ctrls svg { width: 40px; height: 40px; }
+  .ctrls button:active { transform: scale(.9); }
+
+  /* ================= 像素转场 ================= */
+  #dissolve { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+  #dissolve div { position: absolute; opacity: 0; }
+
+  /* ================= 时间滚轮 ================= */
+  #picker { position: fixed; inset: 0; z-index: 30; background: #1c1c1e; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; font-family: 'Oswald', sans-serif; }
+  .wheel { position: relative; display: flex; justify-content: center; gap: 6px; width: min(340px, 90vw); height: 252px;
+    -webkit-mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent); mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent); }
+  .wheel .band { position: absolute; left: 0; right: 0; top: 108px; height: 36px; border-radius: 9px; background: rgba(118,118,128,.24); pointer-events: none; }
+  .col { width: 64px; height: 100%; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; font-family: -apple-system, sans-serif; font-size: 22px; position: relative; z-index: 1; }
+  .col::-webkit-scrollbar { display: none; }
+  .col div { height: 36px; line-height: 36px; text-align: center; scroll-snap-align: center; color: #fff; }
+  .col .pad { scroll-snap-align: none; height: 108px; }
+  #ptogo { font-size: 26px; margin: 34px 0 20px; letter-spacing: .3px; }
+  .pbtn { width: 186px; height: 56px; border-radius: 12px; font-size: 26px; color: #fff; margin-top: 12px; }
+  #pset { background: #8fa3e6; } #pcancel { background: #8b95a6; }
+
+  /* ================= 设置 ================= */
+  #settings { position: fixed; inset: 0; z-index: 20; background: var(--s-bg); color: var(--s-text); overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding: env(safe-area-inset-top) 0 calc(40px + env(safe-area-inset-bottom)); font-size: 16px; -webkit-user-select: text; user-select: text; }
+  .s-top { position: sticky; top: 0; z-index: 2; background: rgba(0,0,0,.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); padding: 12px 12px 10px; }
+  #back { color: var(--s-blue); font-size: 17px; display: inline-flex; align-items: center; gap: 2px; }
+  #back svg { width: 13px; height: 20px; }
+  .s-wrap { max-width: 560px; margin: 0 auto; padding: 0 16px; }
+  .s-h { color: var(--s-sub); font-size: 13px; letter-spacing: .3px; margin: 26px 16px 7px; }
+  .s-group { background: var(--s-cell); border-radius: 11px; overflow: hidden; }
+  .s-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 46px; padding: 8px 16px; position: relative; }
+  .s-row + .s-row::before, .s-sub > .s-row:first-child::before, .s-row + .s-sub::before { content: ''; position: absolute; left: 16px; right: 0; top: 0; height: .5px; background: var(--s-line); }
+  .s-sub { position: relative; background: #252528; }
+  .s-sub::before { content: ''; position: absolute; left: 16px; right: 0; top: 0; height: .5px; background: var(--s-line); }
+  .s-row input[type=number], .s-row input[type=time] { background: none; border: 0; color: var(--s-text); font: inherit; font-size: 16px; text-align: left; width: 100%; outline: none; padding: 0; }
+  .s-row input[type=time] { width: auto; background: #3a3a3c; border-radius: 7px; padding: 5px 9px; text-align: center; color: #fff; }
+  .s-row .val { color: var(--s-text); }
+  .chev { width: 13px; height: 13px; color: var(--s-blue); transition: transform .2s; }
+  .open > .chev, [aria-expanded=true] .chev { transform: rotate(180deg); }
+  .toggle { position: relative; width: 51px; height: 31px; flex: none; }
+  .toggle input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; z-index: 1; }
+  .toggle span { position: absolute; inset: 0; border-radius: 16px; background: #39393d; transition: background .2s; }
+  .toggle span::after { content: ''; position: absolute; left: 2px; top: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.3); transition: transform .2s; }
+  .toggle input:checked + span { background: var(--s-toggle); }
+  .toggle input:checked + span::after { transform: translateX(20px); }
+  .seg { display: flex; background: #3a3a3c; border-radius: 8px; padding: 2px; width: 100%; }
+  .seg button { flex: 1; font-size: 13px; padding: 6px 4px; border-radius: 6px; color: #fff; }
+  .seg button.on { background: #636366; }
+  .days { display: flex; gap: 8px; flex-wrap: wrap; }
+  .days button { width: 36px; height: 36px; border-radius: 50%; background: #3a3a3c; color: #fff; font-size: 13px; }
+  .days button.on { background: var(--s-toggle); color: #1c1c1e; font-weight: 600; }
+  .lvl { padding: 16px; display: flex; justify-content: space-between; gap: 16px; }
+  .lvl h3 { margin: 0; font-size: 19px; }
+  .lvl small { color: var(--s-sub); font-size: 12px; }
+  .lvl .lbar { height: 8px; border-radius: 4px; background: #3a3a3c; margin-top: 10px; width: 100%; overflow: hidden; }
+  .lvl .lbar i { display: block; height: 100%; background: var(--s-toggle); width: 0; }
+  .lvl .r { text-align: right; flex: none; }
+  .lvl .r b { display: block; font-size: 17px; }
+  .fonts .s-row { justify-content: center; min-height: 52px; color: #aeaeb2; }
+  .fonts .s-row.on { background: #3a3a3c; color: #fff; }
+  .fonts .s-row::before { display: none; }
+  .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 16px; }
+  .sw { display: flex; height: 34px; border-radius: 6px; overflow: hidden; outline: 2px solid transparent; outline-offset: 3px; }
+  .sw i { flex: 1; }
+  .sw.on { outline-color: #fff; }
+  .hint { color: var(--s-sub); font-size: 12px; line-height: 1.5; margin: 7px 16px 0; }
+  .s-btn { color: var(--s-blue); width: 100%; text-align: left; }
+  .s-btn.danger { color: #ff453a; }
+  .toast { position: fixed; left: 50%; bottom: calc(40px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 60; background: rgba(40,40,42,.95); color: #fff;
+    padding: 10px 16px; border-radius: 12px; font-size: 14px; opacity: 0; transition: opacity .25s; pointer-events: none; max-width: 86vw; text-align: center; font-family: -apple-system, "PingFang SC", sans-serif; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ================= 主页 ================= -->
+<main id="home">
+  <button id="gear" type="button" aria-label="设置">
+    <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M16 3 27.3 9.5v13L16 29 4.7 22.5v-13z"/><circle cx="16" cy="16" r="4.8"/></svg>
+  </button>
+  <div id="artBox"><img id="artImg" alt="" hidden><canvas id="art" width="44" height="52" aria-label="coins"></canvas></div>
+  <div id="timer">00:00:00</div>
+  <div id="label">YOU'VE MADE:</div>
+  <div id="amount">¥0.00</div>
+  <div id="goal" hidden>
+    <div class="bar"><i id="barFill"></i></div>
+    <div id="togo">To go: 0 hours 0 mins</div>
+  </div>
+  <div class="ctrls">
+    <button id="btnPlay" type="button" aria-label="开始/暂停"></button>
+    <button id="btnTime" type="button" aria-label="设置下班时间">
+      <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5h18M11 35h18M13 5c0 8 12 9 12 15s-12 7-12 15M27 5c0 8-12 9-12 15s12 7 12 15"/></svg>
+    </button>
+    <button id="btnStop" type="button" aria-label="结束">
+      <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="20" cy="20" r="16.5"/><path d="M14.5 14.5l11 11M25.5 14.5l-11 11"/></svg>
+    </button>
+  </div>
+</main>
+
+<!-- ================= 时间滚轮 ================= -->
+<div id="picker" hidden>
+  <div class="wheel">
+    <div class="band"></div>
+    <div class="col" id="wh"></div>
+    <div class="col" id="wm"></div>
+    <div class="col" id="wa"></div>
+  </div>
+  <div id="ptogo">To go: 0 hours 0 mins</div>
+  <button class="pbtn" id="pset" type="button">Set Time</button>
+  <button class="pbtn" id="pcancel" type="button">Cancel</button>
+</div>
+
+<!-- ================= 设置 ================= -->
+<section id="settings" hidden>
+  <div class="s-top"><button id="back" type="button"><svg viewBox="0 0 13 20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 2 3 10l7.5 8"/></svg>返回</button></div>
+  <div class="s-wrap">
+    <div class="s-group" style="margin-top:12px">
+      <div class="lvl">
+        <div style="flex:1">
+          <h3 id="lvName">等级 1</h3>
+          <small id="lvNeed">还需 ¥1,000 升级</small>
+          <div class="lbar"><i id="lvBar"></i></div>
+        </div>
+        <div class="r">
+          <b id="lvHours">0.0</b><small>累计工时</small>
+          <b id="lvEarned" style="margin-top:6px">¥0</b><small>累计收入</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="s-h">时薪</div>
+    <div class="s-group">
+      <div class="s-row"><input id="fHourly" type="number" inputmode="decimal" min="0" max="1000000" step="0.01" aria-label="时薪"></div>
+      <button class="s-row" type="button" id="yearToggle" aria-expanded="false" style="width:100%"><span>按年薪计算</span><svg class="chev" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l5 5 5-5"/></svg></button>
+      <div class="s-sub" id="yearPanel" hidden>
+        <div class="s-row"><input id="fYearly" type="number" inputmode="decimal" min="0" max="1000000000" step="1" placeholder="0" aria-label="年薪"></div>
+        <div class="s-row"><div class="seg" id="fWeek"><button type="button" data-v="40">标准（40小时/周）</button><button type="button" data-v="72">高强度（72小时/周）</button></div></div>
+        <div class="s-row"><span>计算得出的时薪：</span><span class="val" id="calcRate">0.00</span></div>
+      </div>
+    </div>
+
+    <div class="s-h">通知</div>
+    <div class="s-group">
+      <div class="s-row"><span>开启通知</span><label class="toggle"><input type="checkbox" id="fNotify"><span></span></label></div>
+      <button class="s-row" type="button" id="notiToggle" aria-expanded="false" style="width:100%"><span>通知设置</span><svg class="chev" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l5 5 5-5"/></svg></button>
+      <div class="s-sub" id="notiPanel" hidden>
+        <div class="s-row"><span>上班时间</span><input type="time" id="fIn"></div>
+        <div class="s-row"><span>下班时间</span><input type="time" id="fOut"></div>
+        <div class="s-row"><div class="days" id="fDays"></div></div>
+      </div>
+    </div>
+    <p class="hint">开启后，工作日到上班时间会自动开始计时，到下班时间自动结束，并各推送一条通知。通知需要从桌面图标打开 App 时授权（iOS 16.4 及以上）。</p>
+
+    <div class="s-h">显示文字</div>
+    <div class="s-group">
+      <div class="s-row"><span>仅显示数字</span><label class="toggle"><input type="checkbox" id="fNumOnly"><span></span></label></div>
+      <div class="s-row"><span>显示货币符号</span><label class="toggle"><input type="checkbox" id="fSymbol"><span></span></label></div>
+    </div>
+
+    <div class="s-h">字体选择</div>
+    <div class="s-group fonts" id="fFonts"></div>
+
+    <div class="s-h">配色设置</div>
+    <div class="s-group">
+      <div class="swatches" id="fThemes"></div>
+      <div class="s-row"><span>反转颜色</span><label class="toggle"><input type="checkbox" id="fFlip"><span></span></label></div>
+    </div>
+    <p class="hint">在主页点一下宝箱也可以切换配色。</p>
+
+    <div class="s-h">主图</div>
+    <div class="s-group">
+      <div class="s-row"><button class="s-btn" type="button" id="imgPick">上传图片</button></div>
+      <div class="s-row"><button class="s-btn danger" type="button" id="imgReset">恢复默认宝箱</button></div>
+    </div>
+    <p class="hint">可以换成你自己的图片（PNG / JPG / GIF / WebP，2MB 以内，GIF 动图会动）。金币掉落效果会叠加在图片上。</p>
+    <input type="file" id="imgFile" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+
+    <div class="s-h">数据备份</div>
+    <div class="s-group">
+      <div class="s-row"><button class="s-btn" type="button" id="bkExport">备份到文件</button></div>
+      <div class="s-row"><button class="s-btn" type="button" id="bkImport">从文件恢复</button></div>
+    </div>
+    <p class="hint" id="bkLast">上次备份：从未备份</p>
+    <input type="file" id="bkFile" accept="application/json,.json" hidden>
+  </div>
+</section>
+
+<div id="dissolve"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const STORE = 'coins.v1';
+
+  // ================= 配置 =================
+  const THEMES = [
+    ['#d6dae2', '#7d5bc7'], ['#7b87dc', '#c4e6f2'], ['#7c50c8', '#f1ecff'], ['#d9b4d8', '#a63c93'],
+    ['#f4e8e6', '#8c9b3c'], ['#e2735f', '#3d2320'], ['#aba6e8', '#3f2f86'], ['#1e1f2b', '#f0c85a'],
+  ];
+  const FONTS = {
+    oswald:  { family: "'Oswald', sans-serif", scale: 1 },
+    stencil: { family: "'Allerta Stencil', sans-serif", scale: .74 },
+    pixel:   { family: "'Silkscreen', monospace", scale: .6 },
+    dot:     { family: "'VT323', monospace", scale: .95 },
+    glitch:  { family: "'Rubik Glitch', sans-serif", scale: .68 },
+  };
+  const DAY_LABELS = [['一', 1], ['二', 2], ['三', 3], ['四', 4], ['五', 5], ['六', 6], ['日', 0]];
+  const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+  const IMG_RE = /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+\/=]+$/;
+  const IMG_MAX = 2900000;
+
+  const DEFAULTS = () => ({
+    settings: { hourly: 60, yearly: 0, week: 40, notify: false, clockIn: '09:00', clockOut: '18:00', days: [1, 2, 3, 4, 5],
+      numOnly: false, symbol: true, font: 'oswald', theme: 0, flip: false, image: '' },
+    session: { running: false, startAt: 0, accMs: 0, firstStart: 0, endAt: 0, autoDay: '' },
+    stats: { hours: 0, earned: 0 },
+    lastBackup: '',
+  });
+
+  // ================= 存储与校验 =================
+  const num = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) && n >= lo && n <= hi ? n : d; };
+  function validate(d) {
+    if (!d || typeof d !== 'object' || Array.isArray(d)) return null;
+    const out = DEFAULTS(), s = d.settings || {}, se = d.session || {}, st = d.stats || {};
+    const o = out.settings;
+    o.hourly = num(s.hourly, 0, 1e6, o.hourly);
+    o.yearly = num(s.yearly, 0, 1e9, 0);
+    o.week = s.week === 72 ? 72 : 40;
+    o.notify = s.notify === true;
+    o.clockIn = TIME_RE.test(s.clockIn) ? s.clockIn : o.clockIn;
+    o.clockOut = TIME_RE.test(s.clockOut) ? s.clockOut : o.clockOut;
+    if (Array.isArray(s.days)) o.days = [...new Set(s.days.map(Number).filter(n => Number.isInteger(n) && n >= 0 && n <= 6))];
+    o.numOnly = s.numOnly === true;
+    o.symbol = s.symbol !== false;
+    o.font = Object.prototype.hasOwnProperty.call(FONTS, s.font) ? s.font : 'oswald';
+    o.theme = Number.isInteger(s.theme) && s.theme >= 0 && s.theme < THEMES.length ? s.theme : 0;
+    o.flip = s.flip === true;
+    o.image = typeof s.image === 'string' && s.image.length <= IMG_MAX && IMG_RE.test(s.image) ? s.image : '';
+    const ts = v => num(v, 0, 8.64e15, 0);
+    out.session = { running: se.running === true, startAt: ts(se.startAt), accMs: num(se.accMs, 0, 3.1e12, 0),
+      firstStart: ts(se.firstStart), endAt: ts(se.endAt), autoDay: typeof se.autoDay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(se.autoDay) ? se.autoDay : '' };
+    if (out.session.running && !out.session.startAt) out.session.running = false;
+    out.stats = { hours: num(st.hours, 0, 1e7, 0), earned: num(st.earned, 0, 1e12, 0) };
+    out.lastBackup = typeof d.lastBackup === 'string' && !isNaN(Date.parse(d.lastBackup)) ? d.lastBackup : '';
+    return out;
+  }
+  function load() {
+    try { const r = localStorage.getItem(STORE); if (r) { const v = validate(JSON.parse(r)); if (v) return v; } } catch (e) { /* 忽略 */ }
+    return DEFAULTS();
+  }
+  let state = load();
+  const S = () => state.settings;
+  function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { toast('保存失败：浏览器存储不可用'); } }
+
+  // ================= 工具 =================
+  const pad = n => String(n).padStart(2, '0');
+  const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+  const atToday = (t, base = new Date()) => { const d = new Date(base); d.setHours(0, 0, 0, 0); return d.getTime() + toMin(t) * 60000; };
+  function money(n) {
+    const s = n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return (S().symbol ? '¥' : '') + s;
+  }
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  // ================= 计时逻辑 =================
+  const elapsedMs = (now = Date.now()) => state.session.accMs + (state.session.running ? Math.max(0, now - state.session.startAt) : 0);
+  const earnedOf = ms => ms / 3600000 * S().hourly;
+
+  function start(at = Date.now()) {
+    const se = state.session;
+    if (se.running) return;
+    se.running = true; se.startAt = at;
+    if (!se.firstStart) se.firstStart = at;
+    save();
+  }
+  function pause() {
+    const se = state.session;
+    if (!se.running) return;
+    se.accMs = elapsedMs(); se.running = false; se.startAt = 0;
+    save();
+  }
+  function finish(reason) {
+    const ms = elapsedMs();
+    if (ms > 0) {
+      state.stats.hours += ms / 3600000;
+      state.stats.earned += earnedOf(ms);
+    }
+    const made = earnedOf(ms);
+    const autoDay = state.session.autoDay;
+    state.session = { running: false, startAt: 0, accMs: 0, firstStart: 0, endAt: 0, autoDay };
+    save();
+    if (reason === 'auto') notify('Workday complete!', `You've made ${money(made)} today.`);
+    return made;
+  }
+
+  // 按「通知设置」里的上下班时间自动运行
+  function autoSchedule(now) {
+    const s = S();
+    if (!s.notify) return;
+    const d = new Date(now), today = ymd(d), se = state.session;
+    if (!s.days.includes(d.getDay())) return;
+    const tIn = atToday(s.clockIn, d), tOut = atToday(s.clockOut, d);
+    if (tOut <= tIn) return;
+    if (se.autoDay !== today && now >= tIn && now < tOut && !se.running && elapsedMs(now) === 0) {
+      se.autoDay = today;
+      se.endAt = tOut;
+      start(tIn); // 补上从上班时间到现在的收入
+      notify('Clock in!', 'Your workday has started. Time to make money.');
+    }
+  }
+
+  // ================= 通知 =================
+  async function notify(title, body) {
+    if (!S().notify || !('Notification' in window) || Notification.permission !== 'granted') return;
+    try {
+      const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
+      if (reg) reg.showNotification(title, { body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png' });
+      else new Notification(title, { body, icon: 'icons/icon-192.png' });
+    } catch (e) { /* 忽略 */ }
+  }
+
+  // ================= 像素宝箱（原创绘制） =================
+  const art = $('art'), actx = art.getContext('2d');
+  const W = 44, H = 52;
+  const hash = (x, y) => { let n = (x * 374761393 + y * 668265263) | 0; n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967295; };
+  const base = document.createElement('canvas'); base.width = W; base.height = H;
+  const heapPx = [];
+  (function drawBase() {
+    const c = base.getContext('2d');
+    const px = new Map();
+    const put = (x, y, col) => px.set(x + ',' + y, [x, y, col]);
+    const has = (x, y) => px.has(x + ',' + y);
+    const OUT = '#2b140a';
+    const WOOD = { hi: '#c8733f', mid: '#a0522d', lo: '#7a3a1c', deep: '#5a2812' };
+    const GOLD = { hi: '#fff4b0', light: '#ffd84a', mid: '#f0a81e', lo: '#c27a08', edge: '#7a4200' };
+
+    // ---- 1. 向后翻开的箱盖（能看到盖子内侧） ----
+    const LX0 = 7, LX1 = 37, LY0 = 8, LY1 = 24;
+    for (let y = LY0; y <= LY1; y++) {
+      for (let x = LX0; x <= LX1; x++) {
+        const cut = y === LY0 ? 4 : y === LY0 + 1 ? 2 : y === LY0 + 2 ? 1 : 0; // 圆角
+        if (x < LX0 + cut || x > LX1 - cut) continue;
+        const edge = x === LX0 + cut || x === LX1 - cut || y === LY0;
+        const rim = !edge && (x <= LX0 + cut + 1 || x >= LX1 - cut - 1 || y <= LY0 + 1);
+        let col;
+        if (edge) col = OUT;
+        else if (rim) col = y <= LY0 + 1 ? GOLD.light : GOLD.mid;
+        else {
+          // 内侧暗色木板，竖向木条
+          const seam = (x - LX0) % 7 === 0;
+          col = seam ? '#2f140b' : (y < LY0 + 6 ? '#6a2e16' : '#4e2010');
+        }
+        put(x, y, col);
+      }
+    }
+    // 盖子内侧的金属铆钉
+    for (const x of [12, 22, 32]) put(x, LY0 + 4, GOLD.lo);
+
+    // ---- 2. 金币堆 ----
+    const cx = 22, by = 28, rx = 14, ry = 10.5;
+    const heap = new Set();
+    for (let y = Math.floor(by - ry); y <= by; y++) {
+      for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+        const d = ((x + .5 - cx) / rx) ** 2 + ((y + .5 - by) / ry) ** 2;
+        if (d > 1 || (d > .8 && hash(x, y) < .45)) continue;
+        const v = hash(x * 5, y * 3) + (cx - x) * .03 + (by - y) * .035;
+        put(x, y, v > 1 ? GOLD.hi : v > .7 ? GOLD.light : v > .32 ? GOLD.mid : GOLD.lo);
+        heap.add(x + ',' + y);
+      }
+    }
+    // 堆里一枚枚硬币的轮廓
+    for (let i = 0; i < 16; i++) {
+      const x = Math.round(cx - 12 + hash(i, 11) * 22), y = Math.round(by - 8 + hash(i, 29) * 7);
+      if (!heap.has(x + ',' + y) || !heap.has((x + 3) + ',' + (y + 1))) continue;
+      put(x + 1, y, GOLD.hi); put(x + 2, y, GOLD.light);
+      put(x, y + 1, GOLD.light); put(x + 3, y + 1, GOLD.mid);
+      put(x + 1, y + 1, GOLD.mid); put(x + 2, y + 1, GOLD.mid);
+      put(x + 1, y + 2, GOLD.lo); put(x + 2, y + 2, GOLD.lo);
+    }
+    // 宝石：红、蓝、绿
+    const gem = (x, y, hi, mid, lo) => {
+      put(x + 1, y, hi); put(x, y + 1, hi); put(x + 1, y + 1, mid); put(x + 2, y + 1, mid);
+      put(x + 1, y + 2, lo); put(x - 1, y + 1, OUT); put(x + 3, y + 1, OUT); put(x + 1, y - 1, OUT); put(x + 1, y + 3, OUT);
+      put(x, y, OUT); put(x + 2, y, OUT); put(x, y + 2, OUT); put(x + 2, y + 2, OUT);
+    };
+    gem(14, 22, '#ffb3b3', '#e8283c', '#8e0c1e');
+    gem(27, 20, '#bfe6ff', '#2f86e8', '#1a4a9e');
+    gem(21, 24, '#c8ffd0', '#28b850', '#0e6a2a');
+    // 金币堆描边
+    for (const k of heap) {
+      const [x, y] = k.split(',').map(Number);
+      for (const [dx, dy] of [[0, -1], [-1, 0], [1, 0]]) {
+        const nx = x + dx, ny = y + dy, nk = nx + ',' + ny;
+        if (!heap.has(nk)) {
+          const cur = px.get(nk);
+          // 只在空白或盖子内侧上描边
+          if (!cur || cur[2] === '#6a2e16' || cur[2] === '#4e2010' || cur[2] === '#2f140b') put(nx, ny, GOLD.edge);
+        }
+      }
+      heapPx.push([x, y]);
+    }
+
+    // ---- 3. 箱身 ----
+    const L = 6, R = 38, T = 27, B = 45;
+    for (let y = T; y <= B; y++) {
+      for (let x = L; x <= R; x++) {
+        let col;
+        const border = x === L || x === R || y === T || y === B;
+        if (border) col = OUT;
+        else if (y <= T + 2) col = y === T + 1 ? GOLD.light : GOLD.lo;           // 上沿金属条
+        else if (y === T + 3) col = OUT;
+        else if (y >= B - 3) col = y === B - 3 ? OUT : y === B - 2 ? GOLD.mid : GOLD.lo; // 下沿金属条
+        else {
+          // 木板：横向木条 + 少量木纹
+          const row = (y - T - 4) % 5;
+          const shade = x >= R - 4;
+          if (row === 4) col = shade ? '#3f1a0b' : WOOD.deep;
+          else if (row === 0) col = shade ? WOOD.lo : WOOD.hi;
+          else col = shade ? WOOD.lo : (hash(x, y * 13) < .12 ? WOOD.lo : WOOD.mid);
+        }
+        put(x, y, col);
+      }
+    }
+    // 四角 L 形金属包角 + 铆钉
+    const corner = (x0, y0, sx, sy) => {
+      for (let i = 0; i < 5; i++) {
+        put(x0 + sx * i, y0, GOLD.mid); put(x0 + sx * i, y0 + sy, GOLD.lo);
+        put(x0, y0 + sy * i, GOLD.mid); put(x0 + sx, y0 + sy * i, GOLD.lo);
+      }
+      put(x0 + sx, y0 + sy, GOLD.hi);
+      put(x0 + sx * 3, y0 + sy, '#5a3a08'); put(x0 + sx, y0 + sy * 3, '#5a3a08');
+    };
+    corner(L + 1, T + 4, 1, 1); corner(R - 1, T + 4, -1, 1);
+    corner(L + 1, B - 4, 1, -1); corner(R - 1, B - 4, -1, -1);
+
+    // 正中圆形锁扣 + 钥匙孔
+    const kx = 22, ky = 34;
+    for (let y = ky - 4; y <= ky + 4; y++) for (let x = kx - 4; x <= kx + 4; x++) {
+      const d = (x - kx) ** 2 + (y - ky) ** 2;
+      if (d > 18) continue;
+      put(x, y, d > 12 ? '#5a3a08' : (x < kx && y < ky) ? GOLD.hi : d > 6 ? GOLD.mid : GOLD.light);
+    }
+    put(kx, ky - 1, OUT); put(kx, ky, OUT); put(kx - 1, ky + 1, OUT); put(kx, ky + 1, OUT); put(kx + 1, ky + 1, OUT); put(kx, ky + 2, OUT);
+    // 锁扣上方的搭扣连到箱沿
+    for (let y = T + 1; y <= ky - 5; y++) { put(kx - 1, y, GOLD.lo); put(kx, y, GOLD.light); put(kx + 1, y, GOLD.lo); }
+
+    // 小脚
+    for (const fx of [L + 1, R - 3]) for (let x = fx; x <= fx + 2; x++) { put(x, B + 1, OUT); put(x, B + 2, x === fx + 2 ? OUT : '#3f1a0b'); }
+    // 地面阴影
+    for (let x = L + 1; x <= R - 1; x++) if (!has(x, B + 2)) put(x, B + 2, 'rgba(40,20,10,.22)');
+    for (let x = L + 4; x <= R - 4; x++) put(x, B + 3, 'rgba(40,20,10,.12)');
+
+    for (const [x, y, col] of px.values()) { c.fillStyle = col; c.fillRect(x, y, 1, 1); }
+  })();
+  window.CoinsArt = { base };
+
+  // 每一列金币堆的最高点，用来判断落下的金币在哪里「落进去」
+  const surface = {};
+  for (const [x, y] of heapPx) surface[x] = Math.min(surface[x] ?? H, y);
+  let customArt = false;
+  const landY = x => (customArt ? 30 : (surface[x] ?? surface[x - 1] ?? 22)) - 1;
+
+  let particles = [], sparkles = [];
+  function artFrame() {
+    const running = state.session.running;
+    actx.clearRect(0, 0, W, H);
+    if (!customArt) {
+      actx.drawImage(base, 0, 0);
+      // 金堆闪烁
+      for (let i = 0; i < (running ? 4 : 2); i++) {
+        const [x, y] = heapPx[(Math.random() * heapPx.length) | 0];
+        actx.fillStyle = '#fffbe0'; actx.fillRect(x, y, 1, 1);
+      }
+    }
+    // 从上方掉进宝箱的金币（越落越快，落到金币堆上就消失并闪一下）
+    if (running && Math.random() < .6) {
+      particles.push({ x: 10 + Math.random() * 24 | 0, y: -3 - (Math.random() * 4 | 0), vy: .8 + Math.random() * .6, big: Math.random() < .4 });
+    }
+    particles = particles.filter(p => {
+      p.y += p.vy;
+      if (p.vy < 3.2) p.vy += .32;
+      const ground = landY(p.x + 1);
+      if (p.y >= ground) { sparkles.push({ x: p.x + 1, y: ground, life: 3 }); return false; }
+      return true;
+    });
+    for (const p of particles) {
+      const y = Math.round(p.y);
+      if (p.big) {
+        actx.fillStyle = '#b36b00'; actx.fillRect(p.x, y + 1, 3, 2);
+        actx.fillStyle = '#ffc93a'; actx.fillRect(p.x, y, 3, 2); actx.fillRect(p.x + 1, y - 1, 1, 4);
+        actx.fillStyle = '#fff3a8'; actx.fillRect(p.x, y, 1, 1);
+      } else {
+        actx.fillStyle = '#e3960f'; actx.fillRect(p.x, y, 2, 2);
+        actx.fillStyle = '#ffe066'; actx.fillRect(p.x, y, 1, 1);
+      }
+    }
+    // 十字星光
+    if (Math.random() < (running ? .4 : .12)) sparkles.push({ x: 8 + Math.random() * 28 | 0, y: 6 + Math.random() * 20 | 0, life: 5 });
+    sparkles = sparkles.filter(s => s.life-- > 0);
+    for (const s of sparkles) {
+      actx.fillStyle = '#ffffff'; actx.fillRect(s.x, s.y, 1, 1);
+      if (s.life >= 2) { actx.fillStyle = '#ffd24a'; actx.fillRect(s.x - 1, s.y, 1, 1); actx.fillRect(s.x + 1, s.y, 1, 1); actx.fillRect(s.x, s.y - 1, 1, 1); actx.fillRect(s.x, s.y + 1, 1, 1); }
+      if (s.life === 3) { actx.fillStyle = '#ffb000'; actx.fillRect(s.x - 2, s.y, 1, 1); actx.fillRect(s.x + 2, s.y, 1, 1); actx.fillRect(s.x, s.y - 2, 1, 1); actx.fillRect(s.x, s.y + 2, 1, 1); }
+    }
+  }
+
+  // ================= 主题 / 字体 =================
+  function colors() { const [bg, fg] = THEMES[S().theme]; return S().flip ? [fg, bg] : [bg, fg]; }
+  function applyLook() {
+    const [bg, fg] = colors(), f = FONTS[S().font];
+    const r = document.documentElement.style;
+    r.setProperty('--bg', bg); r.setProperty('--fg', fg);
+    r.setProperty('--font', f.family); r.setProperty('--fs', f.scale);
+    document.querySelector('meta[name=theme-color]').setAttribute('content', bg);
+    document.body.classList.toggle('num-only', S().numOnly);
+    const img = $('artImg');
+    customArt = !!S().image;
+    img.hidden = !customArt;
+    if (customArt && img.getAttribute('src') !== S().image) img.src = S().image;
+    if (!customArt) img.removeAttribute('src');
+  }
+
+  // 像素方块转场
+  let dissolving = false;
+  function dissolveTo(change) {
+    if (dissolving) { change(); applyLook(); return; }
+    dissolving = true;
+    const box = $('dissolve');
+    box.textContent = '';
+    const oldFg = colors()[1];
+    change();
+    const [nbg] = colors();
+    const cell = Math.max(26, Math.round(Math.min(innerWidth, innerHeight) / 13));
+    const cols = Math.ceil(innerWidth / cell), rows = Math.ceil(innerHeight / cell);
+    const blocks = [];
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      if (Math.random() > .62) continue;
+      const b = document.createElement('div');
+      const size = Math.random() < .25 ? cell * 2 : cell;
+      b.style.cssText = `left:${x * cell}px;top:${y * cell}px;width:${size}px;height:${size}px;`;
+      if (Math.random() < .18) b.style.boxShadow = `inset 0 0 0 3px ${oldFg}`;
+      else b.style.background = Math.random() < .12 ? oldFg : nbg;
+      box.appendChild(b);
+      blocks.push(b);
+    }
+    blocks.forEach(b => {
+      b.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 1, delay: Math.random() * 280, fill: 'forwards' });
+    });
+    setTimeout(() => {
+      applyLook();
+      blocks.forEach(b => b.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 1, delay: Math.random() * 320, fill: 'forwards' }));
+      setTimeout(() => { box.textContent = ''; dissolving = false; }, 380);
+    }, 330);
+  }
+
+  // ================= 主页渲染 =================
+  const ICON_PAUSE = '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="20" cy="20" r="16.5"/><path d="M16.5 14v12M23.5 14v12"/></svg>';
+  const ICON_PLAY = '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"><circle cx="20" cy="20" r="16.5"/><path d="M16.5 13.5 26 20l-9.5 6.5z"/></svg>';
+  let lastPlayState = null;
+  function render() {
+    const now = Date.now();
+    autoSchedule(now);
+    const se = state.session;
+    if (se.running && se.endAt && now >= se.endAt) { finish('auto'); }
+    const ms = elapsedMs(now);
+    const t = Math.floor(ms / 1000);
+    $('timer').textContent = `${pad(Math.floor(t / 3600))}:${pad(Math.floor(t % 3600 / 60))}:${pad(t % 60)}`;
+    $('amount').textContent = money(earnedOf(ms));
+    const goal = $('goal');
+    if (se.endAt) {
+      goal.hidden = false;
+      const left = Math.max(0, se.endAt - now);
+      const from = se.firstStart || now;
+      const p = se.endAt > from ? Math.min(1, Math.max(0, (now - from) / (se.endAt - from))) : 0;
+      $('barFill').style.width = (p * 100).toFixed(2) + '%';
+      const mins = Math.ceil(left / 60000);
+      $('togo').textContent = `To go: ${Math.floor(mins / 60)} hours ${mins % 60} mins`;
+    } else goal.hidden = true;
+    if (lastPlayState !== se.running) {
+      $('btnPlay').innerHTML = se.running ? ICON_PAUSE : ICON_PLAY;
+      lastPlayState = se.running;
+    }
+  }
+
+  $('btnPlay').addEventListener('click', () => {
+    if (state.session.running) pause(); else start();
+    render();
+  });
+  $('btnStop').addEventListener('click', () => {
+    if (elapsedMs() === 0 && !state.session.endAt) return;
+    const made = finish('manual');
+    if (made > 0) toast(`Session saved · ${money(made)}`);
+    render();
+  });
+  $('artBox').addEventListener('click', () => {
+    dissolveTo(() => { S().theme = (S().theme + 1) % THEMES.length; save(); });
+  });
+
+  // ================= 时间滚轮 =================
+  const ITEM = 36;
+  function fillCol(col, items) {
+    col.textContent = '';
+    const p1 = document.createElement('div'); p1.className = 'pad'; col.appendChild(p1);
+    items.forEach(v => { const d = document.createElement('div'); d.textContent = v; col.appendChild(d); });
+    const p2 = document.createElement('div'); p2.className = 'pad'; col.appendChild(p2);
+  }
+  const wh = $('wh'), wm = $('wm'), wa = $('wa');
+  fillCol(wh, Array.from({ length: 12 }, (_, i) => String(i + 1)));
+  fillCol(wm, Array.from({ length: 60 }, (_, i) => pad(i)));
+  fillCol(wa, ['AM', 'PM']);
+  const idx = col => Math.round(col.scrollTop / ITEM);
+  const setIdx = (col, i) => { col.scrollTop = i * ITEM; };
+  function shade(col) {
+    const i = col.scrollTop / ITEM;
+    [...col.children].forEach((el, k) => { if (k === 0 || k === col.children.length - 1) return; const d = Math.abs(k - 1 - i); el.style.opacity = Math.max(.25, 1 - d * .22); });
+  }
+  function pickerTarget() {
+    const h12 = idx(wh) + 1, m = idx(wm), pm = idx(wa) === 1;
+    const h = (h12 % 12) + (pm ? 12 : 0);
+    const d = new Date(); d.setHours(h, m, 0, 0);
+    let ts = d.getTime();
+    if (ts <= Date.now()) ts += 86400000;
+    return ts;
+  }
+  function updatePicker() {
+    [wh, wm, wa].forEach(shade);
+    const mins = Math.max(0, Math.round((pickerTarget() - Date.now()) / 60000));
+    $('ptogo').textContent = `To go: ${Math.floor(mins / 60)} hours ${mins % 60} mins`;
+  }
+  [wh, wm, wa].forEach(c => c.addEventListener('scroll', updatePicker, { passive: true }));
+  $('btnTime').addEventListener('click', () => {
+    $('picker').hidden = false;
+    const base = state.session.endAt ? new Date(state.session.endAt) : new Date(atToday(S().clockOut));
+    const h = base.getHours();
+    requestAnimationFrame(() => {
+      setIdx(wh, ((h + 11) % 12)); setIdx(wm, base.getMinutes()); setIdx(wa, h >= 12 ? 1 : 0);
+      updatePicker();
+    });
+  });
+  $('pcancel').addEventListener('click', () => { $('picker').hidden = true; });
+  $('pset').addEventListener('click', () => {
+    const se = state.session;
+    se.endAt = pickerTarget();
+    if (!se.firstStart) se.firstStart = Date.now();
+    save();
+    $('picker').hidden = true;
+    render();
+  });
+
+  // ================= 设置页 =================
+  // 按累计收入定级：达到第 i 个门槛即升到 i + 2 级
+  const LEVEL_STEPS = [1000, 10000, 20000, 50000, 100000, 200000, 400000];
+  function levelInfo(earned) {
+    let i = 0;
+    while (i < LEVEL_STEPS.length && earned >= LEVEL_STEPS[i]) i++;
+    if (i === LEVEL_STEPS.length) return { lv: i + 1, max: true, left: 0, pct: 1 };
+    const from = i ? LEVEL_STEPS[i - 1] : 0, to = LEVEL_STEPS[i];
+    return { lv: i + 1, max: false, left: to - earned, pct: (earned - from) / (to - from) };
+  }
+  function renderLevel() {
+    const liveH = elapsedMs() / 3600000;
+    const h = state.stats.hours + liveH, e = state.stats.earned + earnedOf(elapsedMs());
+    const li = levelInfo(e);
+    $('lvName').textContent = `等级 ${li.lv}`;
+    $('lvNeed').textContent = li.max ? '已满级' : `还需 ¥${Math.ceil(li.left).toLocaleString('en-US')} 升级`;
+    $('lvBar').style.width = (li.pct * 100).toFixed(1) + '%';
+    $('lvHours').textContent = h.toFixed(1);
+    $('lvEarned').textContent = '¥' + Math.floor(e).toLocaleString('en-US');
+  }
+  function calcRate() {
+    const y = Number($('fYearly').value);
+    return y > 0 ? y / (52 * S().week) : 0;
+  }
+  function fillSettings() {
+    const s = S();
+    $('fHourly').value = s.hourly;
+    $('fYearly').value = s.yearly || '';
+    $('fWeek').querySelectorAll('button').forEach(b => b.classList.toggle('on', Number(b.dataset.v) === s.week));
+    $('calcRate').textContent = calcRate().toFixed(2);
+    $('fNotify').checked = s.notify;
+    $('fIn').value = s.clockIn; $('fOut').value = s.clockOut;
+    const days = $('fDays'); days.textContent = '';
+    DAY_LABELS.forEach(([l, v]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = l; b.classList.toggle('on', s.days.includes(v));
+      b.addEventListener('click', () => {
+        const i = s.days.indexOf(v); if (i >= 0) s.days.splice(i, 1); else s.days.push(v);
+        b.classList.toggle('on'); save();
+      });
+      days.appendChild(b);
+    });
+    $('fNumOnly').checked = s.numOnly; $('fSymbol').checked = s.symbol; $('fFlip').checked = s.flip;
+    const fonts = $('fFonts'); fonts.textContent = '';
+    Object.entries(FONTS).forEach(([k, f]) => {
+      const row = document.createElement('button'); row.type = 'button'; row.className = 's-row' + (k === s.font ? ' on' : ''); row.style.width = '100%';
+      row.style.fontFamily = f.family; row.style.fontSize = (22 * f.scale) + 'px';
+      row.textContent = "YOU'VE MADE ¥100";
+      row.addEventListener('click', () => { s.font = k; save(); applyLook(); fillSettings(); });
+      fonts.appendChild(row);
+    });
+    const sw = $('fThemes'); sw.textContent = '';
+    THEMES.forEach(([bg, fg], i) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'sw' + (i === s.theme ? ' on' : '');
+      b.setAttribute('aria-label', '配色 ' + (i + 1));
+      const a = document.createElement('i'); a.style.background = bg;
+      const c = document.createElement('i'); c.style.background = fg;
+      b.append(a, c);
+      b.addEventListener('click', () => { s.theme = i; save(); applyLook(); fillSettings(); });
+      sw.appendChild(b);
+    });
+    $('bkLast').textContent = '上次备份：' + (state.lastBackup ? new Date(state.lastBackup).toLocaleString('zh-CN') : '从未备份');
+    renderLevel();
+  }
+
+  $('fHourly').addEventListener('input', e => {
+    const v = Number(e.target.value);
+    if (e.target.value !== '' && Number.isFinite(v) && v >= 0 && v <= 1e6) { S().hourly = Math.round(v * 100) / 100; save(); }
+  });
+  $('fYearly').addEventListener('input', e => {
+    const v = Number(e.target.value);
+    if (e.target.value === '' || !Number.isFinite(v) || v < 0 || v > 1e9) { $('calcRate').textContent = '0.00'; return; }
+    S().yearly = v;
+    const r = calcRate();
+    $('calcRate').textContent = r.toFixed(2);
+    if (r > 0) { S().hourly = Math.round(r * 100) / 100; $('fHourly').value = S().hourly; }
+    save();
+  });
+  $('fWeek').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    S().week = Number(b.dataset.v) === 72 ? 72 : 40;
+    $('fWeek').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    $('fYearly').dispatchEvent(new Event('input'));
+  }));
+  function expander(btnId, panelId) {
+    $(btnId).addEventListener('click', () => {
+      const p = $(panelId); p.hidden = !p.hidden; $(btnId).setAttribute('aria-expanded', String(!p.hidden));
+    });
+  }
+  expander('yearToggle', 'yearPanel');
+  expander('notiToggle', 'notiPanel');
+  $('fNotify').addEventListener('change', async e => {
+    S().notify = e.target.checked; save();
+    if (e.target.checked && 'Notification' in window && Notification.permission === 'default') {
+      try { await Notification.requestPermission(); } catch (err) { /* 忽略 */ }
+    }
+    if (e.target.checked && (!('Notification' in window) || Notification.permission === 'denied')) {
+      toast('系统通知不可用：需从桌面图标打开并允许通知；自动上下班计时仍会生效');
+    }
+  });
+  for (const [id, key] of [['fIn', 'clockIn'], ['fOut', 'clockOut']]) {
+    $(id).addEventListener('change', e => {
+      const v = e.target.value;
+      if (!TIME_RE.test(v)) return;
+      const other = key === 'clockIn' ? S().clockOut : S().clockIn;
+      if ((key === 'clockIn' ? toMin(v) >= toMin(other) : toMin(v) <= toMin(other))) { toast('下班时间需要晚于上班时间'); e.target.value = S()[key]; return; }
+      S()[key] = v; save();
+    });
+  }
+  $('fNumOnly').addEventListener('change', e => { S().numOnly = e.target.checked; save(); applyLook(); });
+  $('fSymbol').addEventListener('change', e => { S().symbol = e.target.checked; save(); render(); });
+  $('fFlip').addEventListener('change', e => { S().flip = e.target.checked; save(); applyLook(); });
+
+  $('gear').addEventListener('click', () => { fillSettings(); $('settings').hidden = false; $('settings').scrollTop = 0; });
+  $('back').addEventListener('click', () => { $('settings').hidden = true; render(); });
+
+  // ================= 主图 =================
+  $('imgPick').addEventListener('click', () => $('imgFile').click());
+  $('imgFile').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    if (!/^image\/(png|jpeg|gif|webp)$/.test(f.type)) { toast('只支持 PNG / JPG / GIF / WebP 图片'); return; }
+    if (f.size > 2 * 1024 * 1024) { toast('图片太大，请换一张 2MB 以内的'); return; }
+    const r = new FileReader();
+    r.onload = () => {
+      const url = String(r.result);
+      if (url.length > IMG_MAX || !IMG_RE.test(url)) { toast('图片格式不正确'); return; }
+      S().image = url;
+      save(); applyLook(); toast('主图已更换');
+    };
+    r.onerror = () => toast('读取图片失败');
+    r.readAsDataURL(f);
+  });
+  $('imgReset').addEventListener('click', () => { S().image = ''; save(); applyLook(); toast('已恢复默认宝箱'); });
+
+  // ================= 备份 / 恢复 =================
+  $('bkExport').addEventListener('click', async () => {
+    const now = new Date();
+    state.lastBackup = now.toISOString();
+    const payload = { app: 'coins', version: 1, exportedAt: now.toISOString(), ...state };
+    const name = `Coins-backup-${ymd(now)}.json`;
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    let done = false;
+    try {
+      const file = new File([blob], name, { type: 'application/json' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); done = true; }
+    } catch (e) { if (e && e.name === 'AbortError') { toast('已取消备份'); return; } }
+    if (!done) {
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    }
+    save(); fillSettings(); toast('备份完成，请选「存储到文件」');
+  });
+  $('bkImport').addEventListener('click', () => $('bkFile').click());
+  $('bkFile').addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    if (f.size > 1024 * 1024) { toast('文件太大，不是 Coins 的备份文件'); return; }
+    try {
+      const d = JSON.parse(await f.text());
+      if (!d || d.app !== 'coins') { toast('这不是 Coins 的备份文件'); return; }
+      const v = validate(d);
+      if (!v) { toast('备份文件内容有误'); return; }
+      if (!confirm('恢复后会覆盖当前的所有数据，确定吗？')) return;
+      state = v; save(); applyLook(); fillSettings(); render(); toast('恢复成功');
+    } catch (err) { toast('读取失败：文件格式不正确'); }
+  });
+
+  // ================= 启动 =================
+  applyLook();
+  render();
+  artFrame();
+  setInterval(render, 250);
+  setInterval(() => { if (!document.hidden) artFrame(); }, 125);
+  setInterval(() => { if (!$('settings').hidden) renderLevel(); }, 1000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>

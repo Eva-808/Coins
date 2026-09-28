@@ -1,0 +1,16 @@
+{
+  "name": "Coins",
+  "short_name": "Coins",
+  "description": "Track earnings by the minute.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#d6dae2",
+  "theme_color": "#d6dae2",
+  "lang": "zh-CN",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
