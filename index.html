@@ -205,7 +205,7 @@
   <div id="artBox"><img id="artImg" alt="" hidden><canvas id="art" width="44" height="52" aria-label="coins"></canvas></div>
   <div id="timer">00:00:00</div>
   <div id="label">YOU'VE MADE:</div>
-  <div id="amount">¥0</div>
+  <div id="amount">¥0.00</div>
   <div id="goal" hidden>
     <div class="bar"><i id="barFill"></i></div>
     <div id="togo">To go: 0 hours 0 mins</div>
@@ -413,6 +413,11 @@
   const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
   const atToday = (t, base = new Date()) => { const d = new Date(base); d.setHours(0, 0, 0, 0); return d.getTime() + toMin(t) * 60000; };
+  // 首页实时金额：保留两位小数（向下取整），每秒都能看到变化
+  function moneyLive(n) {
+    const v = Math.floor(n * 100 + 1e-6) / 100;
+    return (S().symbol ? '¥' : '') + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
   function money(n) {
     const s = Math.floor(n + 1e-9).toLocaleString('en-US'); // 金额只显示整数 + 千分位（向下取整，没赚到的不提前显示）
     return (S().symbol ? '¥' : '') + s;
@@ -808,7 +813,7 @@
     const ms = elapsedMs(now);
     const t = Math.floor(ms / 1000);
     $('timer').textContent = `${pad(Math.floor(t / 3600))}:${pad(Math.floor(t % 3600 / 60))}:${pad(t % 60)}`;
-    $('amount').textContent = money(earnedOf(ms));
+    $('amount').textContent = moneyLive(earnedOf(ms));
     // 今天已经赚满日薪：金额不再增加，金币也不再掉落
     const capped = isCapped(ms);
     earningNow = se.running && !capped;
@@ -1033,7 +1038,7 @@
     if (live) {
       const ms = elapsedMs();
       if (ms === 0) renderRecords();
-      else live.querySelector('small').textContent = liveText(ms), live.querySelector('.rec-amt').textContent = fmtInt(earnedOf(ms));
+      else live.querySelector('small').textContent = liveText(ms), live.querySelector('.rec-amt').textContent = Math.floor(earnedOf(ms)).toLocaleString('en-US');
     } else if (elapsedMs() > 0 && !$('settings').hidden) renderRecords();
   }
 
@@ -1102,7 +1107,7 @@
       const t2 = document.createElement('small'); t2.textContent = liveText(ms);
       info.append(t1, t2);
       const cur = document.createElement('span'); cur.className = 'rec-cur'; cur.textContent = '¥';
-      const amt = document.createElement('span'); amt.className = 'rec-amt'; amt.textContent = fmtInt(earnedOf(ms));
+      const amt = document.createElement('span'); amt.className = 'rec-amt'; amt.textContent = Math.floor(earnedOf(ms)).toLocaleString('en-US');
       row.append(info, cur, amt);
       box.appendChild(row);
     }
