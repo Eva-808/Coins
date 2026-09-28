@@ -56,7 +56,7 @@
   #dissolve div { position: absolute; opacity: 0; }
 
   /* ================= 时间滚轮 ================= */
-  #picker { position: fixed; inset: 0; z-index: 30; background: #1c1c1e; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; font-family: 'Oswald', sans-serif; }
+  #picker { position: fixed; inset: 0; z-index: 30; background: var(--s-cell); display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; font-family: 'Oswald', sans-serif; }
   .wheel { position: relative; display: flex; justify-content: center; gap: 6px; width: min(340px, 90vw); height: 252px;
     -webkit-mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent); mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent); }
   .wheel .band { position: absolute; left: 0; right: 0; top: 108px; height: 36px; border-radius: 9px; background: rgba(118,118,128,.24); pointer-events: none; }
@@ -71,7 +71,7 @@
   /* ================= 设置 ================= */
   #settings { position: fixed; inset: 0; z-index: 20; background: var(--s-bg); color: var(--s-text); overflow-y: auto; -webkit-overflow-scrolling: touch;
     padding: env(safe-area-inset-top) 0 calc(40px + env(safe-area-inset-bottom)); font-size: 16px; -webkit-user-select: text; user-select: text; }
-  .s-top { position: sticky; top: 0; z-index: 2; background: rgba(0,0,0,.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); padding: 12px 12px 10px; }
+  .s-top { position: sticky; top: 0; z-index: 2; background: var(--s-top); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); padding: 12px 12px 10px; }
   #back { color: var(--s-blue); font-size: 17px; display: inline-flex; align-items: center; gap: 2px; }
   #back svg { width: 13px; height: 20px; }
   .s-wrap { max-width: 560px; margin: 0 auto; padding: 0 16px; }
@@ -79,34 +79,34 @@
   .s-group { background: var(--s-cell); border-radius: 11px; overflow: hidden; }
   .s-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 46px; padding: 8px 16px; position: relative; }
   .s-row + .s-row::before, .s-sub > .s-row:first-child::before, .s-row + .s-sub::before { content: ''; position: absolute; left: 16px; right: 0; top: 0; height: .5px; background: var(--s-line); }
-  .s-sub { position: relative; background: #252528; }
+  .s-sub { position: relative; background: var(--s-cell2); }
   .s-sub::before { content: ''; position: absolute; left: 16px; right: 0; top: 0; height: .5px; background: var(--s-line); }
   .s-row input[type=number], .s-row input[type=time] { background: none; border: 0; color: var(--s-text); font: inherit; font-size: 16px; text-align: left; width: 100%; outline: none; padding: 0; }
-  .s-row input[type=time] { width: auto; background: #3a3a3c; border-radius: 7px; padding: 5px 9px; text-align: center; color: #fff; }
+  .s-row input[type=time] { width: auto; background: var(--s-fill); border-radius: 7px; padding: 5px 9px; text-align: center; color: #fff; }
   .s-row .val { color: var(--s-text); }
   .chev { width: 13px; height: 13px; color: var(--s-blue); transition: transform .2s; }
   .open > .chev, [aria-expanded=true] .chev { transform: rotate(180deg); }
   .toggle { position: relative; width: 51px; height: 31px; flex: none; }
   .toggle input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; z-index: 1; }
-  .toggle span { position: absolute; inset: 0; border-radius: 16px; background: #39393d; transition: background .2s; }
+  .toggle span { position: absolute; inset: 0; border-radius: 16px; background: var(--s-fill); transition: background .2s; }
   .toggle span::after { content: ''; position: absolute; left: 2px; top: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.3); transition: transform .2s; }
   .toggle input:checked + span { background: var(--s-toggle); }
   .toggle input:checked + span::after { transform: translateX(20px); }
-  .seg { display: flex; background: #3a3a3c; border-radius: 8px; padding: 2px; width: 100%; }
+  .seg { display: flex; background: var(--s-fill); border-radius: 8px; padding: 2px; width: 100%; }
   .seg button { flex: 1; font-size: 13px; padding: 6px 4px; border-radius: 6px; color: #fff; }
-  .seg button.on { background: #636366; }
+  .seg button.on { background: var(--s-press); }
   .days { display: flex; gap: 8px; flex-wrap: wrap; }
-  .days button { width: 36px; height: 36px; border-radius: 50%; background: #3a3a3c; color: #fff; font-size: 13px; }
+  .days button { width: 36px; height: 36px; border-radius: 50%; background: var(--s-fill); color: #fff; font-size: 13px; }
   .days button.on { background: var(--s-toggle); color: #1c1c1e; font-weight: 600; }
   .lvl { padding: 16px; display: flex; justify-content: space-between; gap: 16px; }
   .lvl h3 { margin: 0; font-size: 19px; }
   .lvl small { color: var(--s-sub); font-size: 12px; }
-  .lvl .lbar { height: 8px; border-radius: 4px; background: #3a3a3c; margin-top: 10px; width: 100%; overflow: hidden; }
+  .lvl .lbar { height: 8px; border-radius: 4px; background: var(--s-fill); margin-top: 10px; width: 100%; overflow: hidden; }
   .lvl .lbar i { display: block; height: 100%; background: var(--s-toggle); width: 0; }
   .lvl .r { text-align: right; flex: none; }
   .lvl .r b { display: block; font-size: 17px; }
   .fonts .s-row { justify-content: center; min-height: 52px; color: #aeaeb2; }
-  .fonts .s-row.on { background: #3a3a3c; color: #fff; }
+  .fonts .s-row.on { background: var(--s-fill); color: #fff; }
   .fonts .s-row::before { display: none; }
   .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 16px; }
   .sw { display: flex; height: 34px; border-radius: 6px; overflow: hidden; outline: 2px solid transparent; outline-offset: 3px; }
@@ -118,6 +118,49 @@
   .toast { position: fixed; left: 50%; bottom: calc(40px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 60; background: rgba(40,40,42,.95); color: #fff;
     padding: 10px 16px; border-radius: 12px; font-size: 14px; opacity: 0; transition: opacity .25s; pointer-events: none; max-width: 86vw; text-align: center; font-family: -apple-system, "PingFang SC", sans-serif; }
   .toast.show { opacity: 1; }
+
+  /* ================= 转场与按压动效 ================= */
+  :root { --spring: cubic-bezier(.32,.72,0,1); --bounce: cubic-bezier(.34,1.56,.64,1); }
+  #home { transition: transform .55s var(--spring), filter .55s var(--spring); }
+  body.s-open #home { transform: translateX(-22%) scale(.94); filter: brightness(.55) saturate(.8); }
+  #settings { transform: translateX(104%); transition: transform .55s var(--spring), background-color .4s; box-shadow: -12px 0 40px rgba(0,0,0,.35); will-change: transform; }
+  #settings.open { transform: translateX(0); }
+  #settings.dragging, body.dragging #home { transition: none; }
+  .s-group, .s-sub, .s-top { transition: background-color .4s; }
+  #settings.open .rise { animation: rise .6s var(--bounce) both; animation-delay: calc(var(--i) * 30ms + 110ms); }
+  @keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+  #picker { opacity: 0; transition: opacity .3s ease; }
+  #picker.open { opacity: 1; }
+  #picker > * { opacity: 0; transform: translateY(40px) scale(.96); transition: transform .55s var(--bounce), opacity .35s ease; }
+  #picker.open > * { opacity: 1; transform: none; }
+  #picker.open > :nth-child(2) { transition-delay: .05s; }
+  #picker.open > :nth-child(3) { transition-delay: .09s; }
+  #picker.open > :nth-child(4) { transition-delay: .12s; }
+
+  /* 按下缩小，松开回弹 */
+  button { transition: transform .45s var(--bounce), background-color .25s, color .25s; }
+  button:active { transform: scale(.93); transition-duration: .1s; }
+  .ctrls button:active, #gear:active { transform: scale(.82); }
+  .s-row { transition: background-color .2s, transform .4s var(--bounce); }
+  button.s-row:active, .s-row:has(> .s-btn:active) { transform: scale(.985); background: var(--s-press); }
+  .s-btn:active { transform: none; }
+  #gear svg { transition: transform .7s var(--spring); }
+  body.s-open #gear svg { transform: rotate(120deg); }
+  #artBox:active { transform: scale(.95); }
+  #artBox { transition: transform .45s var(--bounce); }
+  .pop { animation: pop .45s var(--bounce); }
+  @keyframes pop { from { transform: scale(.55); } to { transform: scale(1); } }
+  .toggle span::after { transition: transform .4s var(--bounce), width .2s var(--spring); }
+  .toggle input:active + span::after { width: 33px; }
+  .toggle input:checked:active + span::after { transform: translateX(14px); }
+  .sw { transition: transform .45s var(--bounce), outline-color .25s; }
+  .sw:active { transform: scale(.88); }
+
+  @media (prefers-reduced-motion: reduce) {
+    #home, #settings, #picker, #picker > *, button, .s-row { transition-duration: .01s !important; }
+    #settings.open .rise, .pop { animation: none; opacity: 1; }
+  }
 </style>
 </head>
 <body>
@@ -561,12 +604,38 @@
 
   // ================= 主题 / 字体 =================
   function colors() { const [bg, fg] = THEMES[S().theme]; return S().flip ? [fg, bg] : [bg, fg]; }
+  const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const rgbHex = c => '#' + c.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+  const mix = (a, b, t) => rgbHex(a.map((v, i) => v * (1 - t) + b[i] * t)); // t = b 的占比
+  const satur = c => (Math.max(...c) - Math.min(...c)) / 255;
+  const lum = c => (c[0] * .299 + c[1] * .587 + c[2] * .114) / 255;
+  function settingsPalette(bg, fg) {
+    const a = hexRgb(bg), b = hexRgb(fg);
+    const acc = satur(a) >= satur(b) ? a : b;               // 取配色里更鲜艳的那个做主色
+    const soft = hexRgb(mix(acc, [255, 255, 255], lum(acc) < .55 ? .45 : .15));
+    const base = hexRgb(mix(acc, [8, 8, 11], .86));
+    return {
+      bg: rgbHex(base),
+      top: `rgba(${base.join(',')},.86)`,
+      cell: mix(acc, [28, 28, 32], .82),
+      cell2: mix(acc, [38, 38, 43], .8),
+      fill: mix(acc, [60, 60, 64], .74),
+      line: mix(acc, [60, 60, 64], .72),
+      press: mix(acc, [80, 80, 86], .66),
+      toggle: rgbHex(soft),
+      blue: rgbHex(soft),
+    };
+  }
+
   function applyLook() {
     const [bg, fg] = colors(), f = FONTS[S().font];
     const r = document.documentElement.style;
     r.setProperty('--bg', bg); r.setProperty('--fg', fg);
     r.setProperty('--font', f.family); r.setProperty('--fs', f.scale);
-    document.querySelector('meta[name=theme-color]').setAttribute('content', bg);
+    // 设置页用当前配色调出一套深色，衔接更自然
+    const pal = settingsPalette(bg, fg);
+    for (const k in pal) r.setProperty('--s-' + k, pal[k]);
+    document.querySelector('meta[name=theme-color]').setAttribute('content', document.body.classList.contains('s-open') ? pal.bg : bg);
     document.body.classList.toggle('num-only', S().numOnly);
     const img = $('artImg');
     customArt = !!S().image;
@@ -633,6 +702,7 @@
     } else goal.hidden = true;
     if (lastPlayState !== se.running) {
       $('btnPlay').innerHTML = se.running ? ICON_PAUSE : ICON_PLAY;
+      if (lastPlayState !== null) { const sv = $('btnPlay').firstChild; sv.classList.add('pop'); }
       lastPlayState = se.running;
     }
   }
@@ -683,8 +753,20 @@
     $('ptogo').textContent = `To go: ${Math.floor(mins / 60)} hours ${mins % 60} mins`;
   }
   [wh, wm, wa].forEach(c => c.addEventListener('scroll', updatePicker, { passive: true }));
+  function openPicker() {
+    const p = $('picker');
+    clearTimeout(openPicker.t);
+    p.hidden = false;
+    void p.offsetWidth;
+    p.classList.add('open');
+  }
+  function closePicker() {
+    const p = $('picker');
+    p.classList.remove('open');
+    openPicker.t = setTimeout(() => { p.hidden = true; }, 380);
+  }
   $('btnTime').addEventListener('click', () => {
-    $('picker').hidden = false;
+    openPicker();
     const base = state.session.endAt ? new Date(state.session.endAt) : new Date(atToday(S().clockOut));
     const h = base.getHours();
     requestAnimationFrame(() => {
@@ -692,13 +774,13 @@
       updatePicker();
     });
   });
-  $('pcancel').addEventListener('click', () => { $('picker').hidden = true; });
+  $('pcancel').addEventListener('click', closePicker);
   $('pset').addEventListener('click', () => {
     const se = state.session;
     se.endAt = pickerTarget();
     if (!se.firstStart) se.firstStart = Date.now();
     save();
-    $('picker').hidden = true;
+    closePicker();
     render();
   });
 
@@ -813,8 +895,61 @@
   $('fSymbol').addEventListener('change', e => { S().symbol = e.target.checked; save(); render(); });
   $('fFlip').addEventListener('change', e => { S().flip = e.target.checked; save(); applyLook(); });
 
-  $('gear').addEventListener('click', () => { fillSettings(); $('settings').hidden = false; $('settings').scrollTop = 0; });
-  $('back').addEventListener('click', () => { $('settings').hidden = true; render(); });
+  // ---- 设置页进出场：右侧推入 + 主页后退变暗，内容依次浮现 ----
+  const setEl = $('settings');
+  [setEl.querySelector('.s-top'), ...setEl.querySelector('.s-wrap').children].forEach((el, i) => {
+    if (el.tagName === 'INPUT') return;
+    el.classList.add('rise'); el.style.setProperty('--i', i);
+  });
+  let closeTimer;
+  function openSettings() {
+    clearTimeout(closeTimer);
+    fillSettings();
+    setEl.hidden = false;
+    setEl.scrollTop = 0;
+    void setEl.offsetWidth;
+    setEl.classList.add('open');
+    document.body.classList.add('s-open');
+    applyLook();
+  }
+  function closeSettings() {
+    setEl.classList.remove('open');
+    document.body.classList.remove('s-open');
+    applyLook();
+    render();
+    closeTimer = setTimeout(() => { setEl.hidden = true; }, 560);
+  }
+  $('gear').addEventListener('click', openSettings);
+  $('back').addEventListener('click', closeSettings);
+
+  // 从屏幕左边缘向右滑返回（和 iOS 一样）
+  let drag = null;
+  setEl.addEventListener('touchstart', e => {
+    const t = e.touches[0];
+    if (t.clientX > 28) return;
+    drag = { x: t.clientX, y: t.clientY, dx: 0, t: Date.now(), lock: null };
+  }, { passive: true });
+  setEl.addEventListener('touchmove', e => {
+    if (!drag) return;
+    const t = e.touches[0], dx = t.clientX - drag.x, dy = t.clientY - drag.y;
+    if (drag.lock === null && Math.abs(dx) + Math.abs(dy) > 8) drag.lock = Math.abs(dx) > Math.abs(dy);
+    if (!drag.lock) return;
+    drag.dx = Math.max(0, dx);
+    const p = Math.min(1, drag.dx / innerWidth);
+    setEl.classList.add('dragging'); document.body.classList.add('dragging');
+    setEl.style.transform = `translateX(${drag.dx}px)`;
+    $('home').style.transform = `translateX(${-22 * (1 - p)}%) scale(${.94 + .06 * p})`;
+    $('home').style.filter = `brightness(${.55 + .45 * p}) saturate(${.8 + .2 * p})`;
+  }, { passive: true });
+  setEl.addEventListener('touchend', () => {
+    if (!drag) return;
+    const fast = drag.dx / Math.max(1, Date.now() - drag.t) > .5;
+    const shouldClose = drag.lock && (drag.dx > innerWidth * .33 || (fast && drag.dx > 40));
+    setEl.classList.remove('dragging'); document.body.classList.remove('dragging');
+    setEl.style.transform = ''; $('home').style.transform = ''; $('home').style.filter = '';
+    drag = null;
+    if (shouldClose) closeSettings();
+  });
 
   // ================= 主图 =================
   $('imgPick').addEventListener('click', () => $('imgFile').click());
