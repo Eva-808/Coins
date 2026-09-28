@@ -157,6 +157,32 @@
   .sw { transition: transform .45s var(--bounce), outline-color .25s; }
   .sw:active { transform: scale(.88); }
 
+  /* 文本型金额输入（时薪、年薪） */
+  .s-row > input[type=text]:not(.rec-amt) { background: none; border: 0; color: var(--s-text); font: inherit; font-size: 16px; width: 100%; outline: none; padding: 0; font-variant-numeric: tabular-nums; }
+
+  /* 收入记录 */
+  .rec { gap: 8px; }
+  .rec-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .rec-info span { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rec-info small { color: var(--s-sub); font-size: 12px; margin-top: 2px; }
+  .rec-cur { color: var(--s-sub); font-size: 15px; }
+  .rec-amt { width: 108px; flex: none; background: var(--s-fill); border: 0; border-radius: 7px; padding: 6px 8px; color: var(--s-text); font: inherit; font-size: 15px; text-align: right; outline: none; font-variant-numeric: tabular-nums; }
+  .rec-amt:focus { box-shadow: 0 0 0 2px var(--s-toggle); }
+  .rec-del { width: 28px; height: 28px; flex: none; border-radius: 50%; background: var(--s-fill); color: #ff8a80; font-size: 12px; }
+  .rec-more { width: 100%; justify-content: center; color: var(--s-blue); }
+  .rec-empty { color: var(--s-sub); justify-content: center; }
+  .s-btn:disabled { opacity: .35; }
+
+  /* 结束确认（底部弹出） */
+  .sheet { position: fixed; inset: 0; z-index: 35; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; justify-content: center; opacity: 0; transition: opacity .3s ease; font-family: 'Oswald', sans-serif; }
+  .sheet.open { opacity: 1; }
+  .sheet-card { width: 100%; max-width: 480px; background: var(--s-cell); color: #fff; border-radius: 24px 24px 0 0; padding: 26px 20px calc(26px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; transform: translateY(100%); transition: transform .55s var(--spring); }
+  .sheet.open .sheet-card { transform: none; }
+  .sheet-title { font-size: 28px; }
+  .sheet-sub { font-size: 20px; opacity: .75; margin: 2px 0 10px; }
+  .sheet .pbtn { width: 100%; max-width: 320px; }
+  #endSave { background: #8fa3e6; } #endDiscard { background: #e0736a; } #endCancel { background: #8b95a6; }
+
   @media (prefers-reduced-motion: reduce) {
     #home, #settings, #picker, #picker > *, button, .s-row { transition-duration: .01s !important; }
     #settings.open .rise, .pop { animation: none; opacity: 1; }
@@ -202,6 +228,17 @@
   <button class="pbtn" id="pcancel" type="button">Cancel</button>
 </div>
 
+<!-- ================= 结束确认 ================= -->
+<div id="endSheet" class="sheet" hidden>
+  <div class="sheet-card">
+    <div class="sheet-title">End this session?</div>
+    <div class="sheet-sub" id="endMade">You've made ¥0.00</div>
+    <button class="pbtn" id="endSave" type="button">Save</button>
+    <button class="pbtn" id="endDiscard" type="button">Discard</button>
+    <button class="pbtn" id="endCancel" type="button">Cancel</button>
+  </div>
+</div>
+
 <!-- ================= 设置 ================= -->
 <section id="settings" hidden>
   <div class="s-top"><button id="back" type="button"><svg viewBox="0 0 13 20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 2 3 10l7.5 8"/></svg>返回</button></div>
@@ -220,12 +257,17 @@
       </div>
     </div>
 
+    <div class="s-h">收入记录</div>
+    <div class="s-group" id="recList"></div>
+    <p class="hint">每次结束计时并选择 Save 会记一条。点金额可以直接修改，点 ✕ 删除这一条，等级和累计收入会跟着重新计算。</p>
+    <div class="s-group" style="margin-top:10px"><div class="s-row"><button class="s-btn danger" type="button" id="recClear">全部清零</button></div></div>
+
     <div class="s-h">时薪</div>
     <div class="s-group">
-      <div class="s-row"><input id="fHourly" type="number" inputmode="decimal" min="0" max="1000000" step="0.01" aria-label="时薪"></div>
+      <div class="s-row"><input id="fHourly" type="text" inputmode="decimal" autocomplete="off" aria-label="时薪"></div>
       <button class="s-row" type="button" id="yearToggle" aria-expanded="false" style="width:100%"><span>按年薪计算</span><svg class="chev" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l5 5 5-5"/></svg></button>
       <div class="s-sub" id="yearPanel" hidden>
-        <div class="s-row"><input id="fYearly" type="number" inputmode="decimal" min="0" max="1000000000" step="1" placeholder="0" aria-label="年薪"></div>
+        <div class="s-row"><input id="fYearly" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" aria-label="年薪"></div>
         <div class="s-row"><div class="seg" id="fWeek"><button type="button" data-v="40">标准（40小时/周）</button><button type="button" data-v="72">高强度（72小时/周）</button></div></div>
         <div class="s-row"><span>计算得出的时薪：</span><span class="val" id="calcRate">0.00</span></div>
       </div>
@@ -302,12 +344,14 @@
   const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
   const IMG_RE = /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+\/=]+$/;
   const IMG_MAX = 2900000;
+  const newId = () => (Date.now().toString(36) + Math.random().toString(36).slice(2, 7)).slice(0, 24);
 
   const DEFAULTS = () => ({
     settings: { hourly: 60, yearly: 0, week: 40, notify: false, clockIn: '09:00', clockOut: '18:00', days: [1, 2, 3, 4, 5],
       numOnly: false, symbol: true, font: 'oswald', theme: 0, flip: false, image: '' },
     session: { running: false, startAt: 0, accMs: 0, firstStart: 0, endAt: 0, autoDay: '' },
     stats: { hours: 0, earned: 0 },
+    records: [],   // 每次结束计时存一条：{ id, start, end, ms, earned, legacy }
     lastBackup: '',
   });
 
@@ -335,6 +379,19 @@
       firstStart: ts(se.firstStart), endAt: ts(se.endAt), autoDay: typeof se.autoDay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(se.autoDay) ? se.autoDay : '' };
     if (out.session.running && !out.session.startAt) out.session.running = false;
     out.stats = { hours: num(st.hours, 0, 1e7, 0), earned: num(st.earned, 0, 1e12, 0) };
+    out.records = [];
+    if (Array.isArray(d.records)) {
+      for (const r of d.records.slice(-5000)) {
+        if (!r || typeof r !== 'object') continue;
+        const ms = num(r.ms, 0, 3.1e12, -1), earned = num(r.earned, 0, 1e12, -1);
+        if (ms < 0 || earned < 0) continue;
+        out.records.push({ id: typeof r.id === 'string' && /^[a-z0-9]{1,24}$/.test(r.id) ? r.id : newId(),
+          start: ts(r.start), end: ts(r.end), ms, earned, legacy: r.legacy === true });
+      }
+    } else if (out.stats.hours > 0 || out.stats.earned > 0) {
+      // 旧版本只存了总数：转成一条「此前累计」记录，之后可以编辑或删除
+      out.records.push({ id: newId(), start: 0, end: 0, ms: out.stats.hours * 3600000, earned: out.stats.earned, legacy: true });
+    }
     out.lastBackup = typeof d.lastBackup === 'string' && !isNaN(Date.parse(d.lastBackup)) ? d.lastBackup : '';
     return out;
   }
@@ -377,13 +434,24 @@
     se.accMs = elapsedMs(); se.running = false; se.startAt = 0;
     save();
   }
-  function finish(reason) {
-    const ms = elapsedMs();
-    if (ms > 0) {
-      state.stats.hours += ms / 3600000;
-      state.stats.earned += earnedOf(ms);
-    }
+  // 累计 = 所有记录之和（可选加上正在进行的这一次）
+  function totals(withLive = true) {
+    let ms = 0, e = 0;
+    for (const r of state.records) { ms += r.ms; e += r.earned; }
+    if (withLive) { const l = elapsedMs(); ms += l; e += earnedOf(l); }
+    return { hours: ms / 3600000, earned: e };
+  }
+  function syncStats() { const t = totals(false); state.stats = { hours: t.hours, earned: t.earned }; }
+
+  // keep = false 表示放弃本次，不记入累计
+  function finish(reason, keep = true) {
+    const ms = elapsedMs(), se = state.session;
     const made = earnedOf(ms);
+    if (keep && ms >= 1000) {
+      const end = Date.now();
+      state.records.push({ id: newId(), start: se.firstStart || se.startAt || end - ms, end, ms, earned: Math.round(made * 100) / 100, legacy: false });
+    }
+    syncStats();
     const autoDay = state.session.autoDay;
     state.session = { running: false, startAt: 0, accMs: 0, firstStart: 0, endAt: 0, autoDay };
     save();
@@ -711,12 +779,34 @@
     if (state.session.running) pause(); else start();
     render();
   });
+  // 结束前先确认：保存 / 放弃 / 继续
+  function openSheet() {
+    const s = $('endSheet');
+    clearTimeout(openSheet.t);
+    $('endMade').textContent = `You've made ${money(earnedOf(elapsedMs()))}`;
+    s.hidden = false;
+    void s.offsetWidth;
+    s.classList.add('open');
+  }
+  function closeSheet() {
+    const s = $('endSheet');
+    s.classList.remove('open');
+    openSheet.t = setTimeout(() => { s.hidden = true; }, 420);
+  }
   $('btnStop').addEventListener('click', () => {
-    if (elapsedMs() === 0 && !state.session.endAt) return;
-    const made = finish('manual');
-    if (made > 0) toast(`Session saved · ${money(made)}`);
-    render();
+    if (elapsedMs() === 0) { if (state.session.endAt) { finish('manual', false); render(); } return; }
+    openSheet();
   });
+  $('endSave').addEventListener('click', () => {
+    const made = finish('manual', true);
+    closeSheet(); toast(`Session saved · ${money(made)}`); render();
+  });
+  $('endDiscard').addEventListener('click', () => {
+    finish('manual', false);
+    closeSheet(); toast('Session discarded'); render();
+  });
+  $('endCancel').addEventListener('click', closeSheet);
+  $('endSheet').addEventListener('click', e => { if (e.target === $('endSheet')) closeSheet(); });
   $('artBox').addEventListener('click', () => {
     dissolveTo(() => { S().theme = (S().theme + 1) % THEMES.length; save(); });
   });
@@ -795,25 +885,116 @@
     return { lv: i + 1, max: false, left: to - earned, pct: (earned - from) / (to - from) };
   }
   function renderLevel() {
-    const liveH = elapsedMs() / 3600000;
-    const h = state.stats.hours + liveH, e = state.stats.earned + earnedOf(elapsedMs());
+    const t = totals();
+    const h = t.hours, e = t.earned;
     const li = levelInfo(e);
     $('lvName').textContent = `等级 ${li.lv}`;
     $('lvNeed').textContent = li.max ? '已满级' : `还需 ¥${Math.ceil(li.left).toLocaleString('en-US')} 升级`;
     $('lvBar').style.width = (li.pct * 100).toFixed(1) + '%';
     $('lvHours').textContent = h.toFixed(1);
-    $('lvEarned').textContent = '¥' + Math.floor(e).toLocaleString('en-US');
+    $('lvEarned').textContent = '¥' + fmt2(e);
   }
-  function calcRate() {
-    const y = Number($('fYearly').value);
-    return y > 0 ? y / (52 * S().week) : 0;
+  const calcRate = () => S().yearly > 0 ? S().yearly / (52 * S().week) : 0;
+
+  // ---- 金额输入：边输边加千分位，离开输入框时补齐两位小数 ----
+  const fmt2 = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const parseMoney = s => { const v = Number(String(s).replace(/,/g, '')); return Number.isFinite(v) ? v : NaN; };
+  function liveFormat(raw) {
+    let s = raw.replace(/[^\d.]/g, '');
+    const dot = s.indexOf('.');
+    if (dot >= 0) s = s.slice(0, dot + 1) + s.slice(dot + 1).replace(/\./g, '').slice(0, 2);
+    let [int, dec] = s.split('.');
+    int = int.replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return dec !== undefined ? int + '.' + dec : int;
   }
+  // onValue(数值或 null, 是否离开输入框)
+  function bindMoneyInput(el, max, onValue) {
+    el.addEventListener('input', () => {
+      const keep = el.value.slice(0, el.selectionStart ?? el.value.length).replace(/[^\d.]/g, '').length;
+      const next = liveFormat(el.value);
+      el.value = next;
+      let pos = 0, n = 0;
+      while (pos < next.length && n < keep) { if (/[\d.]/.test(next[pos])) n++; pos++; }
+      try { el.setSelectionRange(pos, pos); } catch (e) { /* 忽略 */ }
+      const v = parseMoney(next);
+      if (next === '' || next === '.') onValue(null, false);
+      else if (v >= 0 && v <= max) onValue(Math.round(v * 100) / 100, false);
+    });
+    el.addEventListener('blur', () => {
+      if (el.value === '' || el.value === '.') { onValue(null, true); return; }
+      let v = parseMoney(el.value);
+      if (!(v >= 0 && v <= max)) { toast('数字超出范围，已调整'); v = Math.min(max, Math.max(0, v || 0)); }
+      v = Math.round(v * 100) / 100;
+      el.value = fmt2(v);
+      onValue(v, true);
+    });
+  }
+
+  // ---- 收入记录 ----
+  let recShowAll = false;
+  const hm = t => { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  function recTitle(r) {
+    if (r.legacy || !r.start) return '此前累计';
+    const d = new Date(r.start);
+    return `${d.getMonth() + 1}月${d.getDate()}日`;
+  }
+  function renderRecords() {
+    const box = $('recList');
+    box.textContent = '';
+    const list = [...state.records].reverse();
+    if (!list.length) {
+      const row = document.createElement('div'); row.className = 's-row rec-empty'; row.textContent = '还没有记录';
+      box.appendChild(row);
+      $('recClear').disabled = true;
+      return;
+    }
+    $('recClear').disabled = false;
+    for (const r of recShowAll ? list : list.slice(0, 10)) {
+      const row = document.createElement('div'); row.className = 's-row rec';
+      const info = document.createElement('div'); info.className = 'rec-info';
+      const t1 = document.createElement('span'); t1.textContent = recTitle(r);
+      const t2 = document.createElement('small');
+      t2.textContent = (r.legacy || !r.start ? '' : `${hm(r.start)}–${hm(r.end)} · `) + `${(r.ms / 3600000).toFixed(2)} 小时`;
+      info.append(t1, t2);
+      const cur = document.createElement('span'); cur.className = 'rec-cur'; cur.textContent = '¥';
+      const inp = document.createElement('input');
+      inp.type = 'text'; inp.inputMode = 'decimal'; inp.autocomplete = 'off'; inp.className = 'rec-amt';
+      inp.value = fmt2(r.earned); inp.setAttribute('aria-label', '这条记录的金额');
+      bindMoneyInput(inp, 1e9, (v, final) => {
+        if (v === null) { if (final) inp.value = fmt2(r.earned); return; }
+        r.earned = v; syncStats(); save(); renderLevel();
+      });
+      const del = document.createElement('button');
+      del.type = 'button'; del.className = 'rec-del'; del.textContent = '✕'; del.setAttribute('aria-label', '删除这条记录');
+      del.addEventListener('click', () => {
+        if (!confirm(`删除「${recTitle(r)}」这条记录（¥${fmt2(r.earned)}）？`)) return;
+        state.records = state.records.filter(x => x !== r);
+        syncStats(); save(); renderRecords(); renderLevel(); toast('已删除');
+      });
+      row.append(info, cur, inp, del);
+      box.appendChild(row);
+    }
+    if (list.length > 10) {
+      const more = document.createElement('button');
+      more.type = 'button'; more.className = 's-row rec-more';
+      more.textContent = recShowAll ? '收起' : `显示全部 ${list.length} 条`;
+      more.addEventListener('click', () => { recShowAll = !recShowAll; renderRecords(); });
+      box.appendChild(more);
+    }
+  }
+  $('recClear').addEventListener('click', () => {
+    if (!confirm('确定全部清零吗？\n所有收入记录、累计工时、累计收入和等级都会重置，无法撤销。\n（建议先在下方「数据备份」里备份一次）')) return;
+    state.records = [];
+    syncStats(); save(); renderRecords(); renderLevel(); toast('已清零');
+  });
+
   function fillSettings() {
     const s = S();
-    $('fHourly').value = s.hourly;
-    $('fYearly').value = s.yearly || '';
+    $('fHourly').value = fmt2(s.hourly);
+    $('fYearly').value = s.yearly ? fmt2(s.yearly) : '';
     $('fWeek').querySelectorAll('button').forEach(b => b.classList.toggle('on', Number(b.dataset.v) === s.week));
-    $('calcRate').textContent = calcRate().toFixed(2);
+    $('calcRate').textContent = fmt2(calcRate());
+    renderRecords();
     $('fNotify').checked = s.notify;
     $('fIn').value = s.clockIn; $('fOut').value = s.clockOut;
     const days = $('fDays'); days.textContent = '';
@@ -848,23 +1029,21 @@
     renderLevel();
   }
 
-  $('fHourly').addEventListener('input', e => {
-    const v = Number(e.target.value);
-    if (e.target.value !== '' && Number.isFinite(v) && v >= 0 && v <= 1e6) { S().hourly = Math.round(v * 100) / 100; save(); }
+  bindMoneyInput($('fHourly'), 1e6, (v, final) => {
+    if (v === null) { if (final) $('fHourly').value = fmt2(S().hourly); return; }
+    S().hourly = v; save();
   });
-  $('fYearly').addEventListener('input', e => {
-    const v = Number(e.target.value);
-    if (e.target.value === '' || !Number.isFinite(v) || v < 0 || v > 1e9) { $('calcRate').textContent = '0.00'; return; }
-    S().yearly = v;
+  function applyYearly() {
     const r = calcRate();
-    $('calcRate').textContent = r.toFixed(2);
-    if (r > 0) { S().hourly = Math.round(r * 100) / 100; $('fHourly').value = S().hourly; }
+    $('calcRate').textContent = fmt2(r);
+    if (r > 0) { S().hourly = Math.round(r * 100) / 100; $('fHourly').value = fmt2(S().hourly); }
     save();
-  });
+  }
+  bindMoneyInput($('fYearly'), 1e9, v => { S().yearly = v || 0; applyYearly(); });
   $('fWeek').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
     S().week = Number(b.dataset.v) === 72 ? 72 : 40;
     $('fWeek').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
-    $('fYearly').dispatchEvent(new Event('input'));
+    applyYearly();
   }));
   function expander(btnId, panelId) {
     $(btnId).addEventListener('click', () => {
