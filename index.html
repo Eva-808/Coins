@@ -163,6 +163,8 @@
   .s-row > input[type=text]:not(.rec-amt) { background: none; border: 0; color: var(--s-text); font: inherit; font-size: 16px; width: 100%; outline: none; padding: 0; font-variant-numeric: tabular-nums; }
 
   /* 收入记录 */
+  .pay-label { flex: none; white-space: nowrap; color: var(--s-sub); }
+  #fPay { text-align: right; }
   .rec { gap: 8px; }
   .rec-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .rec-info span { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -203,7 +205,7 @@
   <div id="artBox"><img id="artImg" alt="" hidden><canvas id="art" width="44" height="52" aria-label="coins"></canvas></div>
   <div id="timer">00:00:00</div>
   <div id="label">YOU'VE MADE:</div>
-  <div id="amount">¥0.00</div>
+  <div id="amount">¥0</div>
   <div id="goal" hidden>
     <div class="bar"><i id="barFill"></i></div>
     <div id="togo">To go: 0 hours 0 mins</div>
@@ -237,7 +239,7 @@
 <div id="endSheet" class="sheet" hidden>
   <div class="sheet-card">
     <div class="sheet-title">End this session?</div>
-    <div class="sheet-sub" id="endMade">You've made ¥0.00</div>
+    <div class="sheet-sub" id="endMade">You've made ¥0</div>
     <button class="pbtn" id="endSave" type="button">Save</button>
     <button class="pbtn" id="endDiscard" type="button">Discard</button>
     <button class="pbtn" id="endCancel" type="button">Cancel</button>
@@ -267,16 +269,14 @@
     <p class="hint">每次结束计时并选择 Save 会记一条。点金额可以直接修改，点 ✕ 删除这一条，等级和累计收入会跟着重新计算。</p>
     <div class="s-group" style="margin-top:10px"><div class="s-row"><button class="s-btn danger" type="button" id="recClear">全部清零</button></div></div>
 
-    <div class="s-h">时薪</div>
+    <div class="s-h">薪资</div>
     <div class="s-group">
-      <div class="s-row"><input id="fHourly" type="text" inputmode="decimal" autocomplete="off" aria-label="时薪"></div>
-      <button class="s-row" type="button" id="yearToggle" aria-expanded="false" style="width:100%"><span>按年薪计算</span><svg class="chev" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l5 5 5-5"/></svg></button>
-      <div class="s-sub" id="yearPanel" hidden>
-        <div class="s-row"><input id="fYearly" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" aria-label="年薪"></div>
-        <div class="s-row"><div class="seg" id="fWeek"><button type="button" data-v="40">标准（40小时/周）</button><button type="button" data-v="72">高强度（72小时/周）</button></div></div>
-        <div class="s-row"><span>计算得出的时薪：</span><span class="val" id="calcRate">0.00</span></div>
-      </div>
+      <div class="s-row"><div class="seg" id="fPayMode"><button type="button" data-v="hour">时薪</button><button type="button" data-v="month">月薪</button><button type="button" data-v="year">年薪</button></div></div>
+      <div class="s-row"><span class="pay-label" id="payLabel">月薪</span><input id="fPay" type="text" inputmode="decimal" autocomplete="off" placeholder="0" aria-label="薪资金额"></div>
+      <div class="s-row"><span>日薪（每天上限）</span><span class="val" id="calcDay">¥0</span></div>
+      <div class="s-row"><span>折合时薪</span><span class="val" id="calcHour">¥0</span></div>
     </div>
+    <p class="hint" id="payHint"></p>
 
     <div class="s-h">通知</div>
     <div class="s-group">
@@ -352,7 +352,7 @@
   const newId = () => (Date.now().toString(36) + Math.random().toString(36).slice(2, 7)).slice(0, 24);
 
   const DEFAULTS = () => ({
-    settings: { hourly: 60, yearly: 0, week: 40, notify: false, clockIn: '09:00', clockOut: '18:00', days: [1, 2, 3, 4, 5],
+    settings: { payMode: 'month', pay: 10000, notify: false, clockIn: '09:00', clockOut: '18:00', days: [1, 2, 3, 4, 5],
       numOnly: false, symbol: true, font: 'oswald', theme: 0, flip: false, image: '' },
     session: { running: false, startAt: 0, accMs: 0, firstStart: 0, endAt: 0, autoDay: '' },
     stats: { hours: 0, earned: 0 },
@@ -366,9 +366,9 @@
     if (!d || typeof d !== 'object' || Array.isArray(d)) return null;
     const out = DEFAULTS(), s = d.settings || {}, se = d.session || {}, st = d.stats || {};
     const o = out.settings;
-    o.hourly = num(s.hourly, 0, 1e6, o.hourly);
-    o.yearly = num(s.yearly, 0, 1e9, 0);
-    o.week = s.week === 72 ? 72 : 40;
+    // 薪资：只有一个来源（计薪方式 + 金额）。旧版本只有时薪，就按时薪迁移过来
+    if (['hour', 'month', 'year'].includes(s.payMode)) { o.payMode = s.payMode; o.pay = num(s.pay, 0, 1e9, 0); }
+    else if (s.hourly !== undefined) { o.payMode = 'hour'; o.pay = num(s.hourly, 0, 1e6, 0); }
     o.notify = s.notify === true;
     o.clockIn = TIME_RE.test(s.clockIn) ? s.clockIn : o.clockIn;
     o.clockOut = TIME_RE.test(s.clockOut) ? s.clockOut : o.clockOut;
@@ -414,7 +414,7 @@
   const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
   const atToday = (t, base = new Date()) => { const d = new Date(base); d.setHours(0, 0, 0, 0); return d.getTime() + toMin(t) * 60000; };
   function money(n) {
-    const s = n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const s = Math.floor(n + 1e-9).toLocaleString('en-US'); // 金额只显示整数 + 千分位（向下取整，没赚到的不提前显示）
     return (S().symbol ? '¥' : '') + s;
   }
   function toast(msg) {
@@ -424,7 +424,31 @@
 
   // ================= 计时逻辑 =================
   const elapsedMs = (now = Date.now()) => state.session.accMs + (state.session.running ? Math.max(0, now - state.session.startAt) : 0);
-  const earnedOf = ms => ms / 3600000 * S().hourly;
+  // ---- 薪资换算（中国大陆标准：一年 12 个月，每月 21 个工作日）----
+  const MONTHS_PER_YEAR = 12, WORKDAYS_PER_MONTH = 21;
+  // 每天工时 = 下班时间 − 上班时间
+  const dayHours = () => Math.max(0, toMin(S().clockOut) - toMin(S().clockIn)) / 60;
+  function dailyPay() {
+    const s = S();
+    if (s.payMode === 'year') return s.pay / MONTHS_PER_YEAR / WORKDAYS_PER_MONTH;
+    if (s.payMode === 'month') return s.pay / WORKDAYS_PER_MONTH;
+    return s.pay * dayHours();
+  }
+  const hourlyRate = () => { const h = dayHours(); return h > 0 ? dailyPay() / h : 0; };
+  // 同一天已经保存的收入（按记录开始的日期算）
+  function savedOn(dayKey) {
+    let sum = 0;
+    for (const r of state.records) if (!r.legacy && r.start && ymd(new Date(r.start)) === dayKey) sum += r.earned;
+    return sum;
+  }
+  // 本次计时的收入：按时薪算，但同一天加起来不超过日薪
+  function earnedRaw(ms) { return ms / 3600000 * hourlyRate(); }
+  function dayRoom() {
+    const day = ymd(new Date(state.session.firstStart || Date.now()));
+    return Math.max(0, dailyPay() - savedOn(day));
+  }
+  const earnedOf = ms => Math.min(earnedRaw(ms), dayRoom());
+  const isCapped = ms => ms > 0 && earnedRaw(ms) >= dayRoom();
 
   // 这一次的下班时间：永远以设置页的「下班时间」为准（实时读取，改了立刻生效），按开始那天算；
   // 下班时间之后才开始的（比如加班）不会自动结束
@@ -649,9 +673,10 @@
   let customArt = false;
   const landY = x => (customArt ? 30 : (surface[x] ?? surface[x - 1] ?? 22)) - 1;
 
+  let earningNow = false;
   let particles = [], sparkles = [];
   function artFrame() {
-    const running = state.session.running;
+    const running = earningNow; // 在计时且还没赚满日薪时才掉金币
     actx.clearRect(0, 0, W, H);
     if (!customArt) {
       actx.drawImage(base, 0, 0);
@@ -784,8 +809,15 @@
     const t = Math.floor(ms / 1000);
     $('timer').textContent = `${pad(Math.floor(t / 3600))}:${pad(Math.floor(t % 3600 / 60))}:${pad(t % 60)}`;
     $('amount').textContent = money(earnedOf(ms));
+    // 今天已经赚满日薪：金额不再增加，金币也不再掉落
+    const capped = isCapped(ms);
+    earningNow = se.running && !capped;
     const goal = $('goal');
-    if (end) {
+    if (capped) {
+      goal.hidden = false;
+      $('barFill').style.width = '100%';
+      $('togo').textContent = 'Daily max reached';
+    } else if (end) {
       goal.hidden = false;
       const left = Math.max(0, end - now);
       const from = se.firstStart || now;
@@ -995,47 +1027,52 @@
     $('lvNeed').textContent = li.max ? '已满级' : `还需 ¥${Math.ceil(li.left).toLocaleString('en-US')} 升级`;
     $('lvBar').style.width = (li.pct * 100).toFixed(1) + '%';
     $('lvHours').textContent = h.toFixed(1);
-    $('lvEarned').textContent = '¥' + fmt2(e);
+    $('lvEarned').textContent = '¥' + fmtInt(e);
     // 进行中那一行实时刷新
     const live = $('recLive');
     if (live) {
       const ms = elapsedMs();
       if (ms === 0) renderRecords();
-      else live.querySelector('small').textContent = liveText(ms), live.querySelector('.rec-amt').textContent = fmt2(earnedOf(ms));
+      else live.querySelector('small').textContent = liveText(ms), live.querySelector('.rec-amt').textContent = fmtInt(earnedOf(ms));
     } else if (elapsedMs() > 0 && !$('settings').hidden) renderRecords();
   }
-  const calcRate = () => S().yearly > 0 ? S().yearly / (52 * S().week) : 0;
 
   // ---- 金额输入：边输边加千分位，离开输入框时补齐两位小数 ----
-  const fmt2 = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtInt = n => Math.round(n).toLocaleString('en-US'); // 金额统一显示整数 + 千分位
   const parseMoney = s => { const v = Number(String(s).replace(/,/g, '')); return Number.isFinite(v) ? v : NaN; };
+  // 只保留整数：去掉小数点及后面的数字，整数部分加千分位
   function liveFormat(raw) {
-    let s = raw.replace(/[^\d.]/g, '');
-    const dot = s.indexOf('.');
-    if (dot >= 0) s = s.slice(0, dot + 1) + s.slice(dot + 1).replace(/\./g, '').slice(0, 2);
-    let [int, dec] = s.split('.');
-    int = int.replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    return dec !== undefined ? int + '.' + dec : int;
+    const int = raw.split('.')[0].replace(/[^\d]/g, '').replace(/^0+(?=\d)/, '');
+    return int.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   }
   // onValue(数值或 null, 是否离开输入框)
   function bindMoneyInput(el, max, onValue) {
-    el.addEventListener('input', () => {
-      const keep = el.value.slice(0, el.selectionStart ?? el.value.length).replace(/[^\d.]/g, '').length;
-      const next = liveFormat(el.value);
+    const digits = s => s.replace(/[^\d.]/g, '');
+    el.addEventListener('focus', () => { el._prev = el.value; });
+    el.addEventListener('input', e => {
+      let raw = el.value, caret = el.selectionStart ?? raw.length;
+      // 只删掉了千分位逗号：连同它前面那一位数字一起删，避免逗号被补回来「删不动」
+      if (e.inputType === 'deleteContentBackward' && el._prev && raw.length < el._prev.length && digits(raw) === digits(el._prev)) {
+        const before = raw.slice(0, caret).replace(/\d(?=\D*$)/, '');
+        raw = before + raw.slice(caret); caret = before.length;
+      }
+      const keep = digits(raw.slice(0, caret)).length;
+      const next = liveFormat(raw);
       el.value = next;
+      el._prev = next;
       let pos = 0, n = 0;
       while (pos < next.length && n < keep) { if (/[\d.]/.test(next[pos])) n++; pos++; }
       try { el.setSelectionRange(pos, pos); } catch (e) { /* 忽略 */ }
       const v = parseMoney(next);
       if (next === '' || next === '.') onValue(null, false);
-      else if (v >= 0 && v <= max) onValue(Math.round(v * 100) / 100, false);
+      else if (v >= 0 && v <= max) onValue(Math.round(v), false);
     });
     el.addEventListener('blur', () => {
       if (el.value === '' || el.value === '.') { onValue(null, true); return; }
       let v = parseMoney(el.value);
       if (!(v >= 0 && v <= max)) { toast('数字超出范围，已调整'); v = Math.min(max, Math.max(0, v || 0)); }
-      v = Math.round(v * 100) / 100;
-      el.value = fmt2(v);
+      v = Math.round(v);
+      el.value = fmtInt(v);
       onValue(v, true);
     });
   }
@@ -1065,7 +1102,7 @@
       const t2 = document.createElement('small'); t2.textContent = liveText(ms);
       info.append(t1, t2);
       const cur = document.createElement('span'); cur.className = 'rec-cur'; cur.textContent = '¥';
-      const amt = document.createElement('span'); amt.className = 'rec-amt'; amt.textContent = fmt2(earnedOf(ms));
+      const amt = document.createElement('span'); amt.className = 'rec-amt'; amt.textContent = fmtInt(earnedOf(ms));
       row.append(info, cur, amt);
       box.appendChild(row);
     }
@@ -1087,15 +1124,15 @@
       const cur = document.createElement('span'); cur.className = 'rec-cur'; cur.textContent = '¥';
       const inp = document.createElement('input');
       inp.type = 'text'; inp.inputMode = 'decimal'; inp.autocomplete = 'off'; inp.className = 'rec-amt';
-      inp.value = fmt2(r.earned); inp.setAttribute('aria-label', '这条记录的金额');
+      inp.value = fmtInt(r.earned); inp.setAttribute('aria-label', '这条记录的金额');
       bindMoneyInput(inp, 1e9, (v, final) => {
-        if (v === null) { if (final) inp.value = fmt2(r.earned); return; }
+        if (v === null) { if (final) inp.value = fmtInt(r.earned); return; }
         r.earned = v; syncStats(); save(); renderLevel();
       });
       const del = document.createElement('button');
       del.type = 'button'; del.className = 'rec-del'; del.textContent = '✕'; del.setAttribute('aria-label', '删除这条记录');
       del.addEventListener('click', () => {
-        if (!confirm(`删除「${recTitle(r)}」这条记录（¥${fmt2(r.earned)}）？`)) return;
+        if (!confirm(`删除「${recTitle(r)}」这条记录（¥${fmtInt(r.earned)}）？`)) return;
         state.records = state.records.filter(x => x !== r);
         syncStats(); save(); renderRecords(); renderLevel(); toast('已删除');
       });
@@ -1118,10 +1155,7 @@
 
   function fillSettings() {
     const s = S();
-    $('fHourly').value = fmt2(s.hourly);
-    $('fYearly').value = s.yearly ? fmt2(s.yearly) : '';
-    $('fWeek').querySelectorAll('button').forEach(b => b.classList.toggle('on', Number(b.dataset.v) === s.week));
-    $('calcRate').textContent = fmt2(calcRate());
+    renderPay();
     renderRecords();
     $('fNotify').checked = s.notify;
     $('fIn').value = s.clockIn; $('fOut').value = s.clockOut;
@@ -1157,28 +1191,44 @@
     renderLevel();
   }
 
-  bindMoneyInput($('fHourly'), 1e6, (v, final) => {
-    if (v === null) { if (final) $('fHourly').value = fmt2(S().hourly); return; }
-    S().hourly = v; save();
-  });
-  function applyYearly() {
-    const r = calcRate();
-    $('calcRate').textContent = fmt2(r);
-    if (r > 0) { S().hourly = Math.round(r * 100) / 100; $('fHourly').value = fmt2(S().hourly); }
-    save();
+  // ---- 薪资：选计薪方式 + 填一个金额，日薪和时薪自动算出来 ----
+  const PAY_LABEL = { hour: '时薪', month: '月薪', year: '年薪' };
+  function renderPayCalc() {
+    const s = S(), h = dayHours();
+    $('calcDay').textContent = '¥' + fmtInt(dailyPay());
+    $('calcHour').textContent = '¥' + fmtInt(hourlyRate());
+    const rule = s.payMode === 'year' ? '日薪 = 年薪 ÷ 12 个月 ÷ 21 天'
+      : s.payMode === 'month' ? '日薪 = 月薪 ÷ 21 天' : '日薪 = 时薪 × 每天工时';
+    $('payHint').textContent = `按中国大陆标准：一年 12 个月、每月 21 个工作日。${rule}；每天工时按「上班时间～下班时间」算，现在是 ${h.toFixed(h % 1 ? 1 : 0)} 小时。同一天收入到达日薪后就不再增加。`;
   }
-  bindMoneyInput($('fYearly'), 1e9, v => { S().yearly = v || 0; applyYearly(); });
-  $('fWeek').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
-    S().week = Number(b.dataset.v) === 72 ? 72 : 40;
-    $('fWeek').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
-    applyYearly();
+  function renderPay() {
+    const s = S();
+    $('fPayMode').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === s.payMode));
+    $('payLabel').textContent = PAY_LABEL[s.payMode];
+    $('fPay').value = fmtInt(s.pay);
+    renderPayCalc();
+  }
+  bindMoneyInput($('fPay'), 1e9, (v, final) => {
+    // 清空后离开输入框就当作 0，不会偷偷恢复成旧数字
+    S().pay = v === null ? 0 : v;
+    if (final && v === null) $('fPay').value = fmtInt(0);
+    save(); renderPayCalc();
+  });
+  $('fPayMode').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    const s = S(), next = b.dataset.v;
+    if (next === s.payMode) return;
+    // 切换方式时，按当前的日薪换算成新方式的金额，收入不会突然变
+    const day = dailyPay();
+    s.pay = Math.round((next === 'year' ? day * WORKDAYS_PER_MONTH * MONTHS_PER_YEAR
+      : next === 'month' ? day * WORKDAYS_PER_MONTH : (dayHours() > 0 ? day / dayHours() : 0)));
+    s.payMode = next;
+    save(); renderPay();
   }));
   function expander(btnId, panelId) {
     $(btnId).addEventListener('click', () => {
       const p = $(panelId); p.hidden = !p.hidden; $(btnId).setAttribute('aria-expanded', String(!p.hidden));
     });
   }
-  expander('yearToggle', 'yearPanel');
   expander('notiToggle', 'notiPanel');
   $('fNotify').addEventListener('change', async e => {
     S().notify = e.target.checked; save();
@@ -1195,7 +1245,7 @@
       if (!TIME_RE.test(v)) return;
       const other = key === 'clockIn' ? S().clockOut : S().clockIn;
       if ((key === 'clockIn' ? toMin(v) >= toMin(other) : toMin(v) <= toMin(other))) { toast('下班时间需要晚于上班时间'); e.target.value = S()[key]; return; }
-      S()[key] = v; save();
+      S()[key] = v; save(); renderPayCalc();
     });
   }
   $('fNumOnly').addEventListener('change', e => { S().numOnly = e.target.checked; save(); applyLook(); });
