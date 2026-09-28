@@ -67,9 +67,7 @@
   #ptogo { font-size: 26px; margin: 34px 0 20px; letter-spacing: .3px; }
   .pbtn { width: 186px; height: 56px; border-radius: 12px; font-size: 26px; color: #fff; margin-top: 12px; }
   #pset { background: #8fa3e6; } #pcancel { background: #8b95a6; }
-  .pseg { display: flex; background: rgba(118,118,128,.24); border-radius: 10px; padding: 3px; margin-bottom: 26px; width: min(300px, 80vw); }
-  .pseg button { flex: 1; height: 38px; border-radius: 8px; font-size: 19px; color: rgba(255,255,255,.7); }
-  .pseg button.on { background: rgba(255,255,255,.18); color: #fff; }
+  .ptitle { font-size: 26px; margin-bottom: 22px; letter-spacing: .3px; }
   #pnote { font-size: 15px; opacity: .6; margin: -14px 0 14px; font-family: -apple-system, "PingFang SC", sans-serif; min-height: 18px; }
 
   /* ================= 设置 ================= */
@@ -223,7 +221,7 @@
 
 <!-- ================= 时间滚轮 ================= -->
 <div id="picker" hidden>
-  <div class="pseg" id="pMode"><button type="button" data-m="start">Start time</button><button type="button" data-m="end" class="on">End time</button></div>
+  <div class="ptitle">Start time</div>
   <div class="wheel">
     <div class="band"></div>
     <div class="col" id="wh"></div>
@@ -428,17 +426,18 @@
   const elapsedMs = (now = Date.now()) => state.session.accMs + (state.session.running ? Math.max(0, now - state.session.startAt) : 0);
   const earnedOf = ms => ms / 3600000 * S().hourly;
 
-  // 今天设定的下班时间（还没到才有效），用来自动结束
-  function defaultEnd(now = Date.now()) {
-    const t = atToday(S().clockOut, new Date(now));
-    return t > now ? t : 0;
+  // 这一次的下班时间：永远以设置页的「下班时间」为准（实时读取，改了立刻生效），按开始那天算；
+  // 下班时间之后才开始的（比如加班）不会自动结束
+  function sessionEnd(now = Date.now()) {
+    const base = state.session.firstStart || now;
+    const t = atToday(S().clockOut, new Date(base));
+    return t > base ? t : 0;
   }
   function start(at = Date.now()) {
     const se = state.session;
     if (se.running) return;
     se.running = true; se.startAt = at;
     if (!se.firstStart) se.firstStart = at;
-    if (!se.endAt) se.endAt = defaultEnd();
     save();
   }
   // 补录开始时间：期间暂停过的时长照样扣掉，其余按新的开始时间重算
@@ -450,7 +449,6 @@
     se.firstStart = ts;
     if (se.running || worked === 0) { se.running = true; se.startAt = now; se.accMs = acc; }
     else se.accMs = acc; // 暂停中：只改已累计的时长，保持暂停
-    if (!se.endAt) se.endAt = defaultEnd(now);
     save();
   }
   function pause() {
@@ -495,7 +493,6 @@
     if (tOut <= tIn) return;
     if (se.autoDay !== today && now >= tIn && now < tOut && !se.running && elapsedMs(now) === 0) {
       se.autoDay = today;
-      se.endAt = tOut;
       start(now); // 从打开 App 的这一刻算起；前面的时间可以在沙漏 → Start 里补录
       notify('Clock in!', 'Your workday has started. Time to make money.');
     }
@@ -780,20 +777,19 @@
     autoSchedule(now);
     const se = state.session;
     // 到下班时间自动结束（暂停中也算），只结算到下班那一刻
-    if (se.endAt && now >= se.endAt) {
-      if (elapsedMs(se.endAt) > 0) finish('auto', true, se.endAt);
-      else { se.endAt = 0; save(); }
-    }
+    const active = se.running || elapsedMs(now) > 0;
+    let end = active ? sessionEnd(now) : 0;
+    if (end && now >= end) { finish('auto', true, end); end = 0; }
     const ms = elapsedMs(now);
     const t = Math.floor(ms / 1000);
     $('timer').textContent = `${pad(Math.floor(t / 3600))}:${pad(Math.floor(t % 3600 / 60))}:${pad(t % 60)}`;
     $('amount').textContent = money(earnedOf(ms));
     const goal = $('goal');
-    if (se.endAt) {
+    if (end) {
       goal.hidden = false;
-      const left = Math.max(0, se.endAt - now);
+      const left = Math.max(0, end - now);
       const from = se.firstStart || now;
-      const p = se.endAt > from ? Math.min(1, Math.max(0, (now - from) / (se.endAt - from))) : 0;
+      const p = end > from ? Math.min(1, Math.max(0, (now - from) / (end - from))) : 0;
       $('barFill').style.width = (p * 100).toFixed(2) + '%';
       const mins = Math.ceil(left / 60000);
       $('togo').textContent = `To go: ${Math.floor(mins / 60)} hours ${mins % 60} mins`;
@@ -824,7 +820,7 @@
     openSheet.t = setTimeout(() => { s.hidden = true; }, 420);
   }
   $('btnStop').addEventListener('click', () => {
-    if (elapsedMs() === 0) { if (state.session.endAt) { finish('manual', false); render(); } return; }
+    if (elapsedMs() === 0) return;
     openSheet();
   });
   $('endSave').addEventListener('click', () => {
@@ -929,45 +925,29 @@
   fillCol(wm, Array.from({ length: 60 }, (_, i) => pad(i)));
   const idx = col => Math.max(0, Math.min(col._n - 1, Math.round(col._pos)));
   const setIdx = (col, i) => { stopAnim(col); col._pos = clampPos(col, i); drawCol(col); };
-  // 'end'：下班时间（已过的时间点算作明天）；'start'：今天实际开始工作的时间
-  let pickerMode = 'end';
+  // 沙漏只用来补录今天实际开始工作的时间；下班时间统一以设置页为准
   function pickerTarget() {
     const h = Math.min(23, idx(wh)), m = Math.min(59, idx(wm));
     const d = new Date(); d.setHours(h, m, 0, 0);
-    let ts = d.getTime();
-    if (pickerMode === 'end' && ts <= Date.now()) ts += 86400000;
-    return ts;
+    return d.getTime();
   }
   const hmText = mins => `${Math.floor(mins / 60)} hours ${mins % 60} mins`;
   function updatePicker() {
     [wh, wm].forEach(shade);
     const target = pickerTarget(), now = Date.now();
-    if (pickerMode === 'end') {
-      $('ptogo').textContent = `To go: ${hmText(Math.max(0, Math.round((target - now) / 60000)))}`;
-      $('pnote').textContent = '';
-    } else if (target > now) {
+    if (target > now) {
       $('ptogo').textContent = 'Worked: 0 hours 0 mins';
       $('pnote').textContent = '不能晚于现在';
     } else {
       $('ptogo').textContent = `Worked: ${hmText(Math.floor((now - target) / 60000))}`;
       $('pnote').textContent = '从这个时间开始计算今天的收入';
     }
-    $('pset').disabled = pickerMode === 'start' && target > now;
+    $('pset').disabled = target > now;
   }
   function setWheel(ts) {
-    const d = new Date(ts), h = d.getHours();
-    setIdx(wh, h); setIdx(wm, d.getMinutes());
+    const d = new Date(ts);
+    setIdx(wh, d.getHours()); setIdx(wm, d.getMinutes());
   }
-  function setPickerMode(m) {
-    pickerMode = m;
-    $('pMode').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
-    const se = state.session;
-    // 开始：默认显示当前的开始时间（还没开始就显示现在）；结束：显示已设的下班时间或设置里的下班时间
-    const base = m === 'start' ? (se.firstStart && elapsedMs() > 0 ? se.firstStart : Date.now())
-      : (se.endAt || atToday(S().clockOut));
-    requestAnimationFrame(() => { setWheel(base); updatePicker(); });
-  }
-  $('pMode').querySelectorAll('button').forEach(b => b.addEventListener('click', () => setPickerMode(b.dataset.m)));
   function openPicker() {
     const p = $('picker');
     clearTimeout(openPicker.t);
@@ -982,19 +962,17 @@
   }
   $('btnTime').addEventListener('click', () => {
     openPicker();
-    setPickerMode('end');
+    // 默认显示这一次的开始时间；还没开始就显示现在
+    const se = state.session;
+    const base = se.firstStart && elapsedMs() > 0 ? se.firstStart : Date.now();
+    requestAnimationFrame(() => { setWheel(base); updatePicker(); });
   });
   $('pcancel').addEventListener('click', closePicker);
   $('pset').addEventListener('click', () => {
     const target = pickerTarget();
-    if (pickerMode === 'start') {
-      if (target > Date.now()) { toast("Start time can't be in the future"); return; }
-      setStartTime(target);
-      toast(`Started at ${hm(target)}`);
-    } else {
-      state.session.endAt = target;
-      save();
-    }
+    if (target > Date.now()) { toast("Start time can't be in the future"); return; }
+    setStartTime(target);
+    toast(`Started at ${hm(target)}`);
     closePicker();
     render();
   });
