@@ -446,6 +446,12 @@
     for (const r of state.records) if (!r.legacy && r.start && ymd(new Date(r.start)) === dayKey) sum += r.earned;
     return sum;
   }
+  // 同一天已经保存的工作时长
+  function savedMsOn(dayKey) {
+    let sum = 0;
+    for (const r of state.records) if (!r.legacy && r.start && ymd(new Date(r.start)) === dayKey) sum += r.ms;
+    return sum;
+  }
   // 本次计时的收入：按时薪算，但同一天加起来不超过日薪
   function earnedRaw(ms) { return ms / 3600000 * hourlyRate(); }
   function dayRoom() {
@@ -499,7 +505,8 @@
   // at：结算到哪个时间点（自动结束时用下班时间，App 关着期间多出来的时间不算）
   function finish(reason, keep = true, at = Date.now()) {
     const ms = elapsedMs(at), se = state.session;
-    const made = earnedOf(ms);
+    // 一直计时到下班时间自动结束 = 今天上满了班：按当天日薪计（补满到上限）
+    const made = reason === 'auto' ? dayRoom() : earnedOf(ms);
     if (keep && ms >= 1000) {
       const end = at;
       state.records.push({ id: newId(), start: se.firstStart || se.startAt || end - ms, end, ms, earned: Math.round(made * 100) / 100, legacy: false });
@@ -811,17 +818,28 @@
     let end = active ? sessionEnd(now) : 0;
     if (end && now >= end) { finish('auto', true, end); end = 0; }
     const ms = elapsedMs(now);
-    const t = Math.floor(ms / 1000);
+    // 首页显示「今天」的累计：今天已保存的记录 + 正在进行的这一次（合计不超过日薪）
+    // 这样下班自动结束后不会清零，而是停在今天赚到的金额上
+    const dayKey = ymd(new Date(active || ms > 0 ? (se.firstStart || now) : now));
+    const cap = dailyPay();
+    const savedE = savedOn(dayKey);
+    const totalE = Math.min(cap, savedE + earnedOf(ms));
+    const t = Math.floor((savedMsOn(dayKey) + ms) / 1000);
     $('timer').textContent = `${pad(Math.floor(t / 3600))}:${pad(Math.floor(t % 3600 / 60))}:${pad(t % 60)}`;
-    $('amount').textContent = moneyLive(earnedOf(ms));
+    $('amount').textContent = moneyLive(totalE);
     // 今天已经赚满日薪：金额不再增加，金币也不再掉落
-    const capped = isCapped(ms);
+    const capped = cap > 0 && totalE >= cap - 0.005 && (ms > 0 || savedE > 0);
     earningNow = se.running && !capped;
     const goal = $('goal');
+    const dayOver = ms === 0 && savedE > 0 && now >= atToday(S().clockOut);
     if (capped) {
       goal.hidden = false;
       $('barFill').style.width = '100%';
       $('togo').textContent = 'Daily max reached';
+    } else if (dayOver) {
+      goal.hidden = false;
+      $('barFill').style.width = '100%';
+      $('togo').textContent = 'Workday complete';
     } else if (end) {
       goal.hidden = false;
       const left = Math.max(0, end - now);
